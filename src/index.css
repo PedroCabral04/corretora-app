@@ -39,17 +39,21 @@ All colors MUST be HSL.
     /* Custom colors for real estate app */
     --success: 142 86% 28%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    
+
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(142 86% 28%));
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(217 91% 60%),
+      hsl(142 86% 28%)
+    );
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 20% 98%));
-    
+
     /* Shadows */
     --shadow-card: 0 4px 6px -1px hsl(217 91% 60% / 0.1);
     --shadow-elevated: 0 10px 25px -3px hsl(217 91% 60% / 0.15);
@@ -115,6 +119,9 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
+    #lovable-badge {
+      display: none !important;
+    }
   }
 
   body {

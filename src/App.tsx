@@ -9,7 +9,6 @@ import Index from "./pages/Index";
 import BrokerDetails from "./pages/BrokerDetails";
 import Tasks from "./pages/Tasks";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
 
@@ -24,7 +23,6 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/" element={
               <ProtectedRoute>

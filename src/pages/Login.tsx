@@ -168,15 +168,7 @@ const Login = () => {
                   Testar com dados demo
                 </Button>
 
-                <div className="text-center text-sm">
-                  <span className="text-muted-foreground">Não tem uma conta? </span>
-                  <Link
-                    to="/register"
-                    className="text-primary hover:underline font-medium"
-                  >
-                    Cadastre-se
-                  </Link>
-                </div>
+                {/* Link de cadastro removido conforme solicitado */}
 
                 <div className="text-center">
                   <Link
