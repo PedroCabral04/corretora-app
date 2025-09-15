@@ -17,7 +17,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragOverEvent
+  DragOverEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -162,8 +163,10 @@ const SortableTask = ({ task, onEdit, onDelete }: SortableTaskProps) => {
 };
 
 const KanbanColumn = ({ title, status, tasks, icon: Icon, onAddTask, onEditTask, onDeleteTask }: KanbanColumnProps) => {
+  const { setNodeRef } = useDroppable({ id: status });
+
   return (
-    <div className="bg-muted/30 rounded-lg p-4 min-h-[600px] w-80">
+    <div ref={setNodeRef} data-droppable-id={status} className="bg-muted/30 rounded-lg p-4 min-h-[600px] w-80">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Icon className="h-4 w-4" />
@@ -292,12 +295,17 @@ const Tasks = () => {
     const overTaskId = over.id as string;
     
     // Se estamos sobre uma coluna (não sobre uma tarefa)
-    if (columns.some(col => col.status === overTaskId)) {
-      const newStatus = overTaskId as TaskStatus;
+    // If over is a column id
+    const columnMatch = columns.find(col => col.status === overTaskId);
+    if (columnMatch) {
+      const newStatus = columnMatch.status;
       setTasks(tasks => tasks.map(task => 
         task.id === activeTaskId ? { ...task, status: newStatus } : task
       ));
+      return;
     }
+
+    // If over is a task, ensure we don't change status here (rely on handleDragEnd)
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -309,7 +317,7 @@ const Tasks = () => {
     const activeTaskId = active.id as string;
     const overTaskId = over.id as string;
 
-    // Se soltar sobre uma coluna, mover para essa coluna
+    // If dropped over a column
     const targetColumn = columns.find(col => col.status === overTaskId);
     if (targetColumn) {
       setTasks(tasks => tasks.map(task => 
@@ -322,6 +330,24 @@ const Tasks = () => {
         title: "Tarefa movida",
         description: `Tarefa movida para ${targetColumn.title}`,
       });
+      return;
+    }
+
+    // If dropped over another task, move active task to the same status as the target task
+    const targetTask = tasks.find(t => t.id === overTaskId);
+    if (targetTask) {
+      setTasks(tasks => tasks.map(task => 
+        task.id === activeTaskId 
+          ? { ...task, status: targetTask.status }
+          : task
+      ));
+
+      toast({
+        title: "Tarefa movida",
+        description: `Tarefa movida para ${targetTask.status}`,
+      });
+
+      return;
     }
   };
 
