@@ -16,6 +16,8 @@ interface BrokersContextType {
   brokers: Broker[];
   isLoading: boolean;
   createBroker: (data: Partial<Broker>) => Promise<Broker>;
+  updateBroker: (id: string, data: Partial<Broker>) => Promise<Broker>;
+  deleteBroker: (id: string) => Promise<void>;
   getBrokerById: (id: string) => Broker | undefined;
 }
 
@@ -91,12 +93,28 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
     return broker;
   };
 
+  const updateBroker = async (id: string, data: Partial<Broker>) => {
+    const idx = brokers.findIndex(b => b.id === id);
+    if (idx === -1) throw new Error('Corretor não encontrado');
+    const updatedBroker = { ...brokers[idx], ...data };
+    const updated = [...brokers.slice(0, idx), updatedBroker, ...brokers.slice(idx + 1)];
+    persist(updated);
+    return updatedBroker;
+  };
+
+  const deleteBroker = async (id: string) => {
+    const updated = brokers.filter(b => b.id !== id);
+    persist(updated);
+  };
+
   const getBrokerById = (id: string) => brokers.find(b => b.id === id);
 
   const value: BrokersContextType = {
     brokers,
     isLoading,
     createBroker,
+    updateBroker,
+    deleteBroker,
     getBrokerById
   };
 

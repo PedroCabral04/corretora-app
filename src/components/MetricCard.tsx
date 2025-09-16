@@ -13,13 +13,10 @@ export const MetricCard = ({ title, value, icon: Icon, trend, variant = "default
   const getVariantClasses = () => {
     switch (variant) {
       case "success":
-        return "border-success/20 bg-success/5";
       case "warning":
-        return "border-warning/20 bg-warning/5";
       case "info":
-        return "border-info/20 bg-info/5";
-      default:
-        return "border-border";
+      case "default":
+        return "border-primary-200 bg-gradient-to-r from-primary-50 to-primary-100";
     }
   };
 
@@ -32,7 +29,7 @@ export const MetricCard = ({ title, value, icon: Icon, trend, variant = "default
       case "info":
         return "text-info";
       default:
-        return "text-primary";
+        return "text-primary-600";
     }
   };
 

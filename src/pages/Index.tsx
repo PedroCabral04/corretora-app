@@ -15,9 +15,12 @@ const Index = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { createBroker } = useBrokers();
+  const { updateBroker, deleteBroker } = useBrokers();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newBroker, setNewBroker] = useState({ name: '', email: '', phone: '', creci: '' });
+  const [editingBroker, setEditingBroker] = useState<{ id: string; name: string; email?: string; phone?: string; creci?: string } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { brokers } = useBrokers();
 
@@ -49,7 +52,7 @@ const Index = () => {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center space-x-2">
+              <Button className="flex items-center space-x-2 bg-primary-600 text-primary-foreground hover:bg-primary-700">
                 <Plus className="h-4 w-4" />
                 <span>Novo Corretor</span>
               </Button>
@@ -93,6 +96,69 @@ const Index = () => {
               </div>
             </DialogContent>
           </Dialog>
+          {/* Edit Broker Dialog */}
+          <Dialog open={!!editingBroker} onOpenChange={(open) => { if (!open) setEditingBroker(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Editar Corretor</DialogTitle>
+              </DialogHeader>
+              {editingBroker && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="e-name">Nome</Label>
+                    <Input id="e-name" value={editingBroker.name} onChange={(e) => setEditingBroker({...editingBroker, name: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="e-email">Email</Label>
+                    <Input id="e-email" value={editingBroker.email} onChange={(e) => setEditingBroker({...editingBroker, email: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="e-phone">Telefone</Label>
+                    <Input id="e-phone" value={editingBroker.phone} onChange={(e) => setEditingBroker({...editingBroker, phone: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="e-creci">CRECI</Label>
+                    <Input id="e-creci" value={editingBroker.creci} onChange={(e) => setEditingBroker({...editingBroker, creci: e.target.value})} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={async () => {
+                      if (!editingBroker) return;
+                      try {
+                        await updateBroker(editingBroker.id, { name: editingBroker.name, email: editingBroker.email, phone: editingBroker.phone, creci: editingBroker.creci });
+                        toast({ title: 'Sucesso', description: 'Corretor atualizado' });
+                        setEditingBroker(null);
+                      } catch (err) {
+                        toast({ title: 'Erro', description: err instanceof Error ? err.message : 'Erro ao atualizar', variant: 'destructive' });
+                      }
+                    }} className="w-full">Salvar</Button>
+                    <Button variant="ghost" onClick={() => setEditingBroker(null)} className="w-full">Cancelar</Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation */}
+          {confirmDeleteId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold mb-2">Confirmar exclusão</h3>
+                <p className="text-sm text-muted-foreground mb-4">Tem certeza que deseja excluir este corretor? Esta ação não pode ser desfeita.</p>
+                <div className="flex gap-2">
+                  <Button onClick={async () => {
+                    try {
+                      await deleteBroker(confirmDeleteId);
+                      toast({ title: 'Corretor excluído' });
+                      setConfirmDeleteId(null);
+                    } catch (err) {
+                      toast({ title: 'Erro', description: 'Não foi possível excluir', variant: 'destructive' });
+                    }
+                  }} className="w-full">Excluir</Button>
+                  <Button variant="ghost" onClick={() => setConfirmDeleteId(null)} className="w-full">Cancelar</Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Métricas Gerais */}
@@ -139,12 +205,18 @@ const Index = () => {
         </div>
 
         {/* Lista de Corretores */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredBrokers.map(broker => (
             <BrokerCard
               key={broker.id}
               broker={broker}
               onViewDetails={handleViewBrokerDetails}
+              onEdit={(id) => {
+                const b = brokers.find(x => x.id === id);
+                if (!b) return;
+                setEditingBroker({ id: b.id, name: b.name, email: b.email, phone: b.phone, creci: b.creci });
+              }}
+              onDelete={(id) => setConfirmDeleteId(id)}
             />
           ))}
         </div>

@@ -8,6 +8,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Light theme palette based on #e82077 */
     --background: 210 20% 98%;
     --foreground: 215 25% 27%;
 
@@ -17,46 +18,58 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 27%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+  /* Primary scale based on #e82077 (magenta) */
+  --primary-50: 334 90% 98%;
+  --primary-100: 334 85% 95%;
+  --primary-200: 334 80% 90%;
+  --primary-300: 334 75% 80%;
+  --primary-400: 334 78% 70%;
+  --primary-500: 334 81% 52%; /* base */
+  --primary-600: 334 82% 45%;
+  --primary-700: 334 77% 35%;
+  --primary-800: 334 70% 25%;
+  --primary-900: 334 65% 15%;
 
-    --secondary: 210 40% 96%;
+  --primary: var(--primary-500);
+  --primary-foreground: 0 0% 100%;
+
+    /* Secondary / muted tones (soft rose) */
+    --secondary: 330 30% 96%;
     --secondary-foreground: 215 25% 27%;
 
-    --muted: 210 40% 96%;
+    --muted: 330 25% 94%;
     --muted-foreground: 215 13% 65%;
 
-    --accent: 142 86% 28%;
+    /* Accent: complementary purple that pairs well with magenta */
+    --accent: 292 60% 45%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    /* Destructive (strong red/pink) */
+    --destructive: 353 74% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    /* Borders/inputs/ring use light neutral or tinted primary */
+    --border: 330 20% 94%;
+    --input: 330 20% 94%;
+    --ring: 334 81% 60%;
 
     /* Custom colors for real estate app */
-    --success: 142 86% 28%;
+    --success: 142 60% 35%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 40 100% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --info: 217 91% 60%;
+    --info: 220 90% 55%;
     --info-foreground: 0 0% 100%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(217 91% 60%),
-      hsl(142 86% 28%)
-    );
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 20% 98%));
+    --gradient-primary: linear-gradient(135deg, hsl(334 81% 52%), hsl(292 60% 45%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(334 20% 98%));
 
-    /* Shadows */
-    --shadow-card: 0 4px 6px -1px hsl(217 91% 60% / 0.1);
-    --shadow-elevated: 0 10px 25px -3px hsl(217 91% 60% / 0.15);
+    /* Shadows (subtle tinted shadows using primary) */
+    --shadow-card: 0 4px 6px -1px hsl(334 81% 52% / 0.06);
+    --shadow-elevated: 0 10px 25px -3px hsl(334 81% 52% / 0.09);
 
     --radius: 0.5rem;
 
@@ -87,32 +100,45 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Dark theme adjustments (magenta-based palette tuned for dark) */
+  /* Dark theme primary scale */
+  --primary-50: 334 88% 96%;
+  --primary-100: 334 84% 90%;
+  --primary-200: 334 80% 78%;
+  --primary-300: 334 78% 66%;
+  --primary-400: 334 80% 56%;
+  --primary-500: 334 82% 60%; /* base (dark tuned) */
+  --primary-600: 334 82% 48%;
+  --primary-700: 334 78% 36%;
+  --primary-800: 334 70% 26%;
+  --primary-900: 334 60% 16%;
 
-    --secondary: 217.2 32.6% 17.5%;
+  --primary: var(--primary-500);
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 330 28% 18%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 230 12% 18%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 292 50% 40%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 353 65% 45%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 230 10% 16%;
+    --input: 230 10% 16%;
+    --ring: 334 82% 62%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 334 82% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-accent: 292 50% 40%;
+    --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 334 82% 62%;
   }
 }
 

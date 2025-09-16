@@ -15,16 +15,18 @@ interface BrokerCardProps {
     totalValue: number;
   };
   onViewDetails: (brokerId: string) => void;
+  onEdit?: (brokerId: string) => void;
+  onDelete?: (brokerId: string) => void;
 }
 
-export const BrokerCard = ({ broker, onViewDetails }: BrokerCardProps) => {
+export const BrokerCard = ({ broker, onViewDetails, onEdit, onDelete }: BrokerCardProps) => {
   return (
-    <Card className="transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+  <Card className="transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer border-primary-200 bg-gradient-to-r from-primary-50 to-primary-100">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-6 w-6 text-primary" />
+            <div className="w-12 h-12 rounded-full bg-primary-600/10 flex items-center justify-center">
+              <User className="h-6 w-6 text-primary-600" />
             </div>
             <div>
               <CardTitle className="text-lg">{broker.name}</CardTitle>
@@ -43,6 +45,14 @@ export const BrokerCard = ({ broker, onViewDetails }: BrokerCardProps) => {
                 )}
               </div>
             </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            {onEdit && (
+              <button onClick={(e) => { e.stopPropagation(); onEdit(broker.id); }} className="text-sm text-primary hover:underline mr-2">Editar</button>
+            )}
+            {onDelete && (
+              <button onClick={(e) => { e.stopPropagation(); onDelete(broker.id); }} className="text-sm text-destructive hover:underline">Excluir</button>
+            )}
           </div>
         </div>
       </CardHeader>
