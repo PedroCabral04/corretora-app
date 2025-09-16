@@ -14,7 +14,332 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      brokers: {
+        Row: {
+          created_at: string
+          creci: string | null
+          email: string | null
+          id: string
+          monthly_expenses: number
+          name: string
+          phone: string | null
+          total_listings: number
+          total_sales: number
+          total_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          creci?: string | null
+          email?: string | null
+          id?: string
+          monthly_expenses?: number
+          name: string
+          phone?: string | null
+          total_listings?: number
+          total_sales?: number
+          total_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          creci?: string | null
+          email?: string | null
+          id?: string
+          monthly_expenses?: number
+          name?: string
+          phone?: string | null
+          total_listings?: number
+          total_sales?: number
+          total_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string
+          datetime: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          priority: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          datetime: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          priority?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          datetime?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          priority?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          broker_id: string
+          category: string
+          created_at: string
+          description: string
+          expense_date: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          broker_id: string
+          category: string
+          created_at?: string
+          description: string
+          expense_date: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          broker_id?: string
+          category?: string
+          created_at?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listings: {
+        Row: {
+          broker_id: string
+          created_at: string
+          id: string
+          listing_date: string
+          owner_name: string
+          property_address: string
+          property_value: number
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          created_at?: string
+          id?: string
+          listing_date: string
+          owner_name: string
+          property_address: string
+          property_value: number
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          created_at?: string
+          id?: string
+          listing_date?: string
+          owner_name?: string
+          property_address?: string
+          property_value?: number
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listings_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          broker_id: string
+          client_name: string
+          created_at: string
+          id: string
+          meeting_date: string
+          meeting_type: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          client_name: string
+          created_at?: string
+          id?: string
+          meeting_date: string
+          meeting_type: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          client_name?: string
+          created_at?: string
+          id?: string
+          meeting_date?: string
+          meeting_type?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales: {
+        Row: {
+          broker_id: string
+          client_name: string
+          commission: number
+          created_at: string
+          id: string
+          property_address: string
+          sale_date: string
+          sale_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          client_name: string
+          commission: number
+          created_at?: string
+          id?: string
+          property_address: string
+          sale_date: string
+          sale_value: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          client_name?: string
+          commission?: number
+          created_at?: string
+          id?: string
+          property_address?: string
+          sale_date?: string
+          sale_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date: string
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

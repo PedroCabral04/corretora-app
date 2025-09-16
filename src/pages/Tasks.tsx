@@ -37,18 +37,7 @@ import {
   FileText
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-
-type TaskStatus = "Backlog" | "Em Progresso" | "Em Revisão" | "Concluída";
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  dueDate: string;
-  status: TaskStatus;
-  createdAt: string;
-  priority: "Baixa" | "Média" | "Alta";
-}
+import { useTasks, TaskStatus, Task } from "@/contexts/TasksContext";
 
 interface KanbanColumnProps {
   title: string;
@@ -205,6 +194,7 @@ const Tasks = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { tasks, createTask, updateTask, deleteTask: removeTask } = useTasks();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -214,44 +204,8 @@ const Tasks = () => {
     priority: "Média" as "Baixa" | "Média" | "Alta"
   });
 
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Criar campanha de marketing Q1",
-      description: "Definir estratégia e materiais para campanhas do primeiro trimestre",
-      dueDate: "2024-02-15",
-      status: "Backlog",
-      priority: "Alta",
-      createdAt: "2024-01-10"
-    },
-    {
-      id: "2",
-      title: "Reunião com equipe comercial",
-      description: "Alinhamento de metas e processos",
-      dueDate: "2024-01-20",
-      status: "Em Progresso",
-      priority: "Média",
-      createdAt: "2024-01-05"
-    },
-    {
-      id: "3",
-      title: "Análise de resultados dezembro",
-      description: "Revisar métricas e performance da equipe",
-      dueDate: "2024-01-25",
-      status: "Em Revisão",
-      priority: "Alta",
-      createdAt: "2024-01-12"
-    },
-    {
-      id: "4",
-      title: "Atualizar documentação",
-      description: "Revisar e atualizar processos internos",
-      dueDate: "2024-01-18",
-      status: "Concluída",
-      priority: "Baixa",
-      createdAt: "2024-01-08"
-    }
-  ]);
+  // Remove the local state tasks array - we're using the context now
+  // const [tasks, setTasks] = useState<Task[]>([...]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -294,18 +248,12 @@ const Tasks = () => {
     const activeTaskId = active.id as string;
     const overTaskId = over.id as string;
     
-    // Se estamos sobre uma coluna (não sobre uma tarefa)
-    // If over is a column id
     const columnMatch = columns.find(col => col.status === overTaskId);
     if (columnMatch) {
       const newStatus = columnMatch.status;
-      setTasks(tasks => tasks.map(task => 
-        task.id === activeTaskId ? { ...task, status: newStatus } : task
-      ));
+      updateTask(activeTaskId, { status: newStatus });
       return;
     }
-
-    // If over is a task, ensure we don't change status here (rely on handleDragEnd)
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
