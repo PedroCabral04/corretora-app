@@ -43,18 +43,20 @@ const Login = () => {
     }
 
     try {
-      await login(email, password);
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao CorretoraApp",
-      });
+      const res = await login(email, password);
+      if (res?.error) {
+        setError(res.error);
+        toast({ title: 'Erro no login', description: res.error, variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: "Login realizado com sucesso!", description: "Bem-vindo ao CorretoraApp" });
+      // redirect to where user came from or home
+      const from = (location.state as any)?.from?.pathname || '/';
+      navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao fazer login');
-      toast({
-        title: "Erro no login",
-        description: "Verifique suas credenciais e tente novamente",
-        variant: "destructive",
-      });
+      toast({ title: "Erro no login", description: "Verifique suas credenciais e tente novamente", variant: "destructive" });
     }
   };
 

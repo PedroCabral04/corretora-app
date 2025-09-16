@@ -36,59 +36,78 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          // Get user profile from profiles table
-          const { data: profile } = await supabase
+    // central handler to populate user from session
+    const handleSession = async (session: Session | null) => {
+      setSession(session);
+      if (session?.user) {
+        try {
+          const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', session.user.id)
             .single();
-          
-          if (profile) {
-            setUser({
-              id: profile.user_id,
-              email: profile.email,
-              name: profile.name
-            });
-          }
-        } else {
-          setUser(null);
-        }
-        
-        setIsLoading(false);
-      }
-    );
 
-    // Check for existing session
+          if (error) {
+            console.warn('Error fetching profile', error.message);
+            setUser({ id: session.user.id, email: session.user.email ?? '', name: '' });
+          } else if (profile) {
+            setUser({ id: profile.user_id, email: profile.email, name: profile.name });
+          }
+        } catch (err) {
+          console.warn('Error in handleSession', err);
+        }
+      } else {
+        setUser(null);
+      }
+
+      setIsLoading(false);
+    };
+
+    // Set up auth state listener
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      handleSession(session ?? null);
+    });
+
+    // Check for existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        // Trigger the auth state change manually for existing sessions
-        setSession(session);
+        handleSession(session);
       } else {
         setIsLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => data?.subscription?.unsubscribe?.();
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
       if (error) {
         return { error: error.message };
       }
-      
+
+      // Make sure we have the active session from the auth client
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (session) {
+        setSession(session);
+        // fetch profile and set user (fallback to session user if no profile)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (profile) {
+          setUser({ id: profile.user_id, email: profile.email, name: profile.name });
+        } else {
+          setUser({ id: session.user.id, email: session.user.email ?? '', name: (session.user.user_metadata as any)?.name ?? '' });
+        }
+      }
+
       return {};
     } finally {
       setIsLoading(false);
@@ -117,14 +136,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       // Insert profile row into `profiles` table if we have a user id
       if (userId) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({ user_id: userId, email, name });
-
+        const { error: profileError } = await supabase.from('profiles').insert({ user_id: userId, email, name });
         if (profileError) {
-          // Log profile creation error but don't block signup; return error to UI
           return { error: profileError.message };
         }
+      }
+
+      // Try to get the active session now (signUp may not return session immediately)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (session) {
+        setSession(session);
+        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
+        if (profile) setUser({ id: profile.user_id, email: profile.email, name: profile.name });
+        else setUser({ id: session.user.id, email: session.user.email ?? '', name: (session.user.user_metadata as any)?.name ?? '' });
       }
 
       return {};
