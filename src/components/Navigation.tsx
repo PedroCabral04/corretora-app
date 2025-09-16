@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Users, CheckSquare, Home, LogOut } from "lucide-react";
+import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -55,6 +55,15 @@ export const Navigation = () => {
               >
                 <CheckSquare className="h-4 w-4" />
                 <span>Tarefas</span>
+              </Button>
+
+              <Button
+                variant={isActive("/agenda") ? "default" : "ghost"}
+                onClick={() => navigate("/agenda")}
+                className="flex items-center space-x-2"
+              >
+                <CalendarIcon className="h-4 w-4" />
+                <span>Agenda</span>
               </Button>
             </div>
 
