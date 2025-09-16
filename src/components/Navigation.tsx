@@ -33,12 +33,13 @@ export const Navigation = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-2">
-            <Home className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">CorretoraApp</h1>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="flex space-x-4">
+            <div className="flex items-center mr-2">
+              <Home className="h-6 w-6 text-primary" />
+              <h1 className="ml-2 text-xl font-bold text-foreground hidden sm:block">CorretoraApp</h1>
+            </div>
+
+            {/* Desktop Links */}
+            <div className="hidden sm:flex items-center space-x-4">
               <Button
                 variant={isActive("/") ? "default" : "ghost"}
                 onClick={() => navigate("/")}
@@ -47,7 +48,7 @@ export const Navigation = () => {
                 <Users className="h-4 w-4" />
                 <span>Corretores</span>
               </Button>
-              
+
               <Button
                 variant={isActive("/tasks") ? "default" : "ghost"}
                 onClick={() => navigate("/tasks")}
@@ -65,6 +66,22 @@ export const Navigation = () => {
                 <CalendarIcon className="h-4 w-4" />
                 <span>Agenda</span>
               </Button>
+            </div>
+
+            {/* Mobile menu (hamburger) */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-44" align="end" forceMount>
+                  <DropdownMenuItem onClick={() => navigate('/')}>Corretores</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/tasks')}>Tarefas</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/agenda')}>Agenda</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* User Menu */}

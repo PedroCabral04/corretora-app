@@ -155,7 +155,7 @@ const KanbanColumn = ({ title, status, tasks, icon: Icon, onAddTask, onEditTask,
   const { setNodeRef } = useDroppable({ id: status });
 
   return (
-    <div ref={setNodeRef} data-droppable-id={status} className="bg-muted/30 rounded-lg p-4 min-h-[600px] w-80">
+    <div ref={setNodeRef} data-droppable-id={status} className="bg-muted/30 rounded-lg p-4 min-h-[520px] w-80 sm:w-72 md:w-80 lg:w-80 mobile:w-[85vw]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Icon className="h-4 w-4" />
@@ -269,12 +269,9 @@ const Tasks = () => {
     const targetColumn = columns.find(col => col.status === overTaskId);
     if (targetColumn) {
       // Update task status via context
-      updateTask(activeTaskId, { status: targetColumn.status })
+      updateTask(activeTaskId, { status: targetColumn.status }, { optimistic: true })
         .then(() => {
-          toast({
-            title: "Tarefa movida",
-            description: `Tarefa movida para ${targetColumn.title}`,
-          });
+          toast({ title: "Tarefa movida", description: `Tarefa movida para ${targetColumn.title}` });
         })
         .catch((err) => {
           console.error(err);
@@ -286,12 +283,9 @@ const Tasks = () => {
     // If dropped over another task, move active task to the same status as the target task
     const targetTask = tasks.find(t => t.id === overTaskId);
     if (targetTask) {
-      updateTask(activeTaskId, { status: targetTask.status })
+      updateTask(activeTaskId, { status: targetTask.status }, { optimistic: true })
         .then(() => {
-          toast({
-            title: "Tarefa movida",
-            description: `Tarefa movida para ${targetTask.status}`,
-          });
+          toast({ title: "Tarefa movida", description: `Tarefa movida para ${targetTask.status}` });
         })
         .catch((err) => {
           console.error(err);
@@ -338,7 +332,7 @@ const Tasks = () => {
 
     if (editingTask) {
       // Update via context
-      updateTask(editingTask.id, formData as Partial<Task>)
+      updateTask(editingTask.id, formData as Partial<Task>, { optimistic: true })
         .then(() => {
           toast({ title: "Sucesso", description: "Tarefa atualizada com sucesso" });
         })
@@ -348,7 +342,7 @@ const Tasks = () => {
         });
     } else {
       // Create via context
-      createTask(formData as Omit<Task, 'id' | 'createdAt'>)
+      createTask(formData as Omit<Task, 'id' | 'createdAt'>, { optimistic: true })
         .then(() => {
           toast({ title: "Sucesso", description: "Tarefa criada com sucesso" });
         })
@@ -362,7 +356,7 @@ const Tasks = () => {
   };
 
   const deleteTask = (taskId: string) => {
-    removeTask(taskId)
+    removeTask(taskId, { optimistic: true })
       .then(() => {
         toast({ title: "Tarefa excluída", description: "A tarefa foi removida com sucesso" });
       })
@@ -380,21 +374,25 @@ const Tasks = () => {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Kanban de Tarefas</h1>
-            <p className="text-muted-foreground mt-1">
-              Organize suas demandas e atividades
-            </p>
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Kanban de Tarefas</h1>
+              <p className="text-muted-foreground mt-1">
+                Organize suas demandas e atividades
+              </p>
+            </div>
+            <div className="flex items-center">
+              <Button onClick={() => openModal()} className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nova Tarefa</span>
+              </Button>
+            </div>
           </div>
-          <Button onClick={() => openModal()} className="flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Nova Tarefa</span>
-          </Button>
         </div>
 
         {/* Métricas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
           <MetricCard
             title="Tarefas Pendentes"
             value={pendingTasks}
@@ -435,9 +433,9 @@ const Tasks = () => {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-6 overflow-x-auto pb-4">
+          <div className="flex gap-6 overflow-x-auto pb-4 px-2">
             {columns.map(column => (
-              <div key={column.status}>
+              <div key={column.status} className="flex-shrink-0">
                 <KanbanColumn
                   title={column.title}
                   status={column.status}
@@ -465,7 +463,7 @@ const Tasks = () => {
 
       {/* Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-auto max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingTask ? "Editar Tarefa" : "Nova Tarefa"}
