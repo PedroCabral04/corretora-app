@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrokers } from '@/contexts/BrokersContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +22,7 @@ const Register = () => {
   const [error, setError] = useState('');
   
   const { register, isLoading, isAuthenticated } = useAuth();
+  const { createBroker } = useBrokers();
   
   // Redirecionar se já estiver logado
   if (isAuthenticated) {

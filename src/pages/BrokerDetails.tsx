@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useBrokers } from '@/contexts/BrokersContext';
 import { 
   ArrowLeft, 
   TrendingUp, 
@@ -29,66 +30,25 @@ const BrokerDetails = () => {
   const { toast } = useToast();
 
   // State management for broker data
-  const [brokerData, setBrokerData] = useState({
+  const { getBrokerById } = useBrokers();
+
+  const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
+
+  const [brokerData, setBrokerData] = useState(() => ({
     id: brokerId,
-    name: "Ana Silva",
-    email: "ana@exemplo.com",
-    phone: "(11) 99999-9999",
-    totalSales: 8,
-    totalListings: 15,
-    monthlyExpenses: 2500,
-    totalValue: 850000,
-    sales: [
-      {
-        id: "1",
-        description: "Apartamento Vila Olímpia",
-        value: 450000,
-        date: "2024-01-15"
-      },
-      {
-        id: "2", 
-        description: "Casa Jardim Paulista",
-        value: 680000,
-        date: "2024-02-10"
-      }
-    ],
-    listings: [
-      {
-        id: "1",
-        address: "Rua das Flores, 123",
-        status: "Ativa",
-        date: "2024-01-10"
-      },
-      {
-        id: "2",
-        address: "Av. Paulista, 456",
-        status: "Vendida", 
-        date: "2024-02-05"
-      }
-    ],
-    meetings: [
-      {
-        id: "1",
-        title: "Planejamento Q1 2024",
-        content: "Definir metas de captação e vendas para o primeiro trimestre.",
-        date: "2024-01-08T10:00:00"
-      }
-    ],
-    expenses: [
-      {
-        id: "1",
-        description: "Tráfego Pago Facebook",
-        cost: 800,
-        date: "2024-01-05"
-      },
-      {
-        id: "2",
-        description: "Material de Marketing",
-        cost: 350,
-        date: "2024-01-12"
-      }
-    ]
-  });
+    name: brokerFromStore?.name ?? "",
+    creci: brokerFromStore?.creci ?? "",
+    email: brokerFromStore?.email ?? "",
+    phone: brokerFromStore?.phone ?? "",
+    totalSales: brokerFromStore?.totalSales ?? 0,
+    totalListings: brokerFromStore?.totalListings ?? 0,
+    monthlyExpenses: brokerFromStore?.monthlyExpenses ?? 0,
+    totalValue: brokerFromStore?.totalValue ?? 0,
+    sales: brokerFromStore && (brokerFromStore as any).sales ? (brokerFromStore as any).sales : [],
+    listings: brokerFromStore && (brokerFromStore as any).listings ? (brokerFromStore as any).listings : [],
+    meetings: brokerFromStore && (brokerFromStore as any).meetings ? (brokerFromStore as any).meetings : [],
+    expenses: brokerFromStore && (brokerFromStore as any).expenses ? (brokerFromStore as any).expenses : []
+  }));
 
   // Modal states
   const [salesModalOpen, setSalesModalOpen] = useState(false);
@@ -227,7 +187,7 @@ const BrokerDetails = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-foreground">{brokerData.name}</h1>
-              <p className="text-muted-foreground">{brokerData.email} • {brokerData.phone}</p>
+              <p className="text-muted-foreground">{brokerData.email} • {brokerData.phone} • CRECI {brokerData.creci}</p>
             </div>
           </div>
         </div>

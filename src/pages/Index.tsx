@@ -3,47 +3,23 @@ import { Navigation } from "@/components/Navigation";
 import { BrokerCard } from "@/components/BrokerCard";
 import { MetricCard } from "@/components/MetricCard";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
 import { Plus, Users, TrendingUp, Home, DollarSign, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useBrokers } from '@/contexts/BrokersContext';
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const { createBroker } = useBrokers();
+  const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newBroker, setNewBroker] = useState({ name: '', email: '', phone: '', creci: '' });
 
-  // Mock data - em produção viria do backend
-  const brokers = [
-    {
-      id: "1",
-      name: "Ana Silva",
-      email: "ana@exemplo.com", 
-      phone: "(11) 99999-9999",
-      totalSales: 8,
-      totalListings: 15,
-      monthlyExpenses: 2500,
-      totalValue: 850000
-    },
-    {
-      id: "2", 
-      name: "Carlos Santos",
-      email: "carlos@exemplo.com",
-      phone: "(11) 88888-8888",
-      totalSales: 12,
-      totalListings: 20,
-      monthlyExpenses: 3200,
-      totalValue: 1200000
-    },
-    {
-      id: "3",
-      name: "Maria Oliveira", 
-      email: "maria@exemplo.com",
-      phone: "(11) 77777-7777",
-      totalSales: 6,
-      totalListings: 10,
-      monthlyExpenses: 1800,
-      totalValue: 450000
-    }
-  ];
+  const { brokers } = useBrokers();
 
   const filteredBrokers = brokers.filter(broker =>
     broker.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -71,10 +47,52 @@ const Index = () => {
               Gerencie sua equipe de corretores
             </p>
           </div>
-          <Button className="flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Novo Corretor</span>
-          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" />
+                <span>Novo Corretor</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Novo Corretor</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="b-name">Nome</Label>
+                  <Input id="b-name" value={newBroker.name} onChange={(e) => setNewBroker({...newBroker, name: e.target.value})} />
+                </div>
+                <div>
+                  <Label htmlFor="b-email">Email</Label>
+                  <Input id="b-email" value={newBroker.email} onChange={(e) => setNewBroker({...newBroker, email: e.target.value})} />
+                </div>
+                <div>
+                  <Label htmlFor="b-phone">Telefone</Label>
+                  <Input id="b-phone" value={newBroker.phone} onChange={(e) => setNewBroker({...newBroker, phone: e.target.value})} />
+                </div>
+                <div>
+                  <Label htmlFor="b-creci">CRECI</Label>
+                  <Input id="b-creci" value={newBroker.creci} onChange={(e) => setNewBroker({...newBroker, creci: e.target.value})} />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={async () => {
+                    if (!newBroker.name) { toast({ title: 'Erro', description: 'Nome é obrigatório', variant: 'destructive' }); return; }
+                    try {
+                      await createBroker(newBroker);
+                      toast({ title: 'Sucesso', description: 'Corretor criado com sucesso' });
+                      setNewBroker({ name: '', email: '', phone: '', creci: '' });
+                      setIsDialogOpen(false);
+                    } catch (err) {
+                      toast({ title: 'Erro', description: err instanceof Error ? err.message : 'Erro ao criar corretor', variant: 'destructive' });
+                    }
+                  }} className="w-full">Criar Corretor</Button>
+                  <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="w-full">Cancelar</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Métricas Gerais */}
