@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Home, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import heroImage from '@/assets/hero-image.jpg';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -19,6 +20,7 @@ const Login = () => {
   
   const { login, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Redirecionar se já estiver logado
   if (isAuthenticated) {
@@ -154,20 +156,18 @@ const Login = () => {
                 >
                   {isLoading ? "Entrando..." : "Entrar"}
                 </Button>
+
+                {/* Botão Registrar - navega para a página de cadastro */}
+                <div className="pt-2">
+                  <Button variant="outline" className="w-full" onClick={() => navigate('/register')}>
+                    Registrar
+                  </Button>
+                </div>
               </form>
 
               <Separator />
 
               <div className="space-y-4">
-                <Button
-                  variant="outline"
-                  onClick={handleDemoLogin}
-                  className="w-full"
-                  type="button"
-                >
-                  Testar com dados demo
-                </Button>
-
                 {/* Link de cadastro removido conforme solicitado */}
 
                 <div className="text-center">
@@ -182,12 +182,7 @@ const Login = () => {
             </CardContent>
           </Card>
 
-          {/* Demo Info */}
-          <div className="mt-6 p-4 bg-info/10 rounded-lg text-center">
-            <p className="text-sm text-info-foreground">
-              <strong>Demo:</strong> admin@exemplo.com | 123456
-            </p>
-          </div>
+          {/* Demo login removed per request */}
         </div>
       </div>
     </div>

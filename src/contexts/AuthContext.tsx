@@ -13,7 +13,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
-  register: (email: string, password: string, name: string) => Promise<{ error?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -95,25 +95,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      // Create auth user
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            name: name
-          },
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: `${window.location.origin}/`,
+          data: { name }
         }
       });
 
-      if (error) {
-        return { error: error.message };
+      if (signUpError) {
+        return { error: signUpError.message };
+      }
+
+      // If signUp returns a user id (on instant confirmation) or the user is in data.user
+      const userId = (data as any)?.user?.id;
+
+      // Insert profile row into `profiles` table if we have a user id
+      if (userId) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({ user_id: userId, email, name });
+
+        if (profileError) {
+          // Log profile creation error but don't block signup; return error to UI
+          return { error: profileError.message };
+        }
       }
 
       return {};
+    } catch (err: any) {
+      return { error: err?.message ?? 'Erro desconhecido ao registrar' };
     } finally {
       setIsLoading(false);
     }

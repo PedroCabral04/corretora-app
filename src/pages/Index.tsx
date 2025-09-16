@@ -50,23 +50,24 @@ const Index = () => {
               Gerencie sua equipe de corretores
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center space-x-2 bg-primary-600 text-primary-foreground hover:bg-primary-700">
-                <Plus className="h-4 w-4" />
-                <span>Novo Corretor</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Novo Corretor</DialogTitle>
-              </DialogHeader>
+          <div className="flex items-center space-x-2">
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center space-x-2 bg-primary-600 text-primary-foreground hover:bg-primary-700">
+                  <Plus className="h-4 w-4" />
+                  <span>Novo Corretor</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo Corretor</DialogTitle>
+                </DialogHeader>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="b-name">Nome</Label>
-                  <Input id="b-name" value={newBroker.name} onChange={(e) => setNewBroker({...newBroker, name: e.target.value})} />
-                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="b-name">Nome</Label>
+                    <Input id="b-name" value={newBroker.name} onChange={(e) => setNewBroker({...newBroker, name: e.target.value})} />
+                  </div>
                 <div>
                   <Label htmlFor="b-email">Email</Label>
                   <Input id="b-email" value={newBroker.email} onChange={(e) => setNewBroker({...newBroker, email: e.target.value})} />
@@ -93,9 +94,14 @@ const Index = () => {
                   }} className="w-full">Criar Corretor</Button>
                   <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="w-full">Cancelar</Button>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+                </div>
+              </DialogContent>
+            </Dialog>
+            {/* Botão de Registrar - visível no cabeçalho */}
+            <Button variant="outline" onClick={() => navigate('/register')} className="ml-2">
+              Registrar
+            </Button>
+          </div>
           {/* Edit Broker Dialog */}
           <Dialog open={!!editingBroker} onOpenChange={(open) => { if (!open) setEditingBroker(null); }}>
             <DialogContent>
