@@ -268,32 +268,35 @@ const Tasks = () => {
     // If dropped over a column
     const targetColumn = columns.find(col => col.status === overTaskId);
     if (targetColumn) {
-      setTasks(tasks => tasks.map(task => 
-        task.id === activeTaskId 
-          ? { ...task, status: targetColumn.status }
-          : task
-      ));
-      
-      toast({
-        title: "Tarefa movida",
-        description: `Tarefa movida para ${targetColumn.title}`,
-      });
+      // Update task status via context
+      updateTask(activeTaskId, { status: targetColumn.status })
+        .then(() => {
+          toast({
+            title: "Tarefa movida",
+            description: `Tarefa movida para ${targetColumn.title}`,
+          });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível mover a tarefa", variant: "destructive" });
+        });
       return;
     }
 
     // If dropped over another task, move active task to the same status as the target task
     const targetTask = tasks.find(t => t.id === overTaskId);
     if (targetTask) {
-      setTasks(tasks => tasks.map(task => 
-        task.id === activeTaskId 
-          ? { ...task, status: targetTask.status }
-          : task
-      ));
-
-      toast({
-        title: "Tarefa movida",
-        description: `Tarefa movida para ${targetTask.status}`,
-      });
+      updateTask(activeTaskId, { status: targetTask.status })
+        .then(() => {
+          toast({
+            title: "Tarefa movida",
+            description: `Tarefa movida para ${targetTask.status}`,
+          });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível mover a tarefa", variant: "destructive" });
+        });
 
       return;
     }
@@ -334,37 +337,39 @@ const Tasks = () => {
     }
 
     if (editingTask) {
-      setTasks(tasks => tasks.map(task => 
-        task.id === editingTask.id 
-          ? { ...task, ...formData }
-          : task
-      ));
-      toast({
-        title: "Sucesso",
-        description: "Tarefa atualizada com sucesso",
-      });
+      // Update via context
+      updateTask(editingTask.id, formData as Partial<Task>)
+        .then(() => {
+          toast({ title: "Sucesso", description: "Tarefa atualizada com sucesso" });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível atualizar a tarefa", variant: "destructive" });
+        });
     } else {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        ...formData,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setTasks(tasks => [...tasks, newTask]);
-      toast({
-        title: "Sucesso",
-        description: "Tarefa criada com sucesso",
-      });
+      // Create via context
+      createTask(formData as Omit<Task, 'id' | 'createdAt'>)
+        .then(() => {
+          toast({ title: "Sucesso", description: "Tarefa criada com sucesso" });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível criar a tarefa", variant: "destructive" });
+        });
     }
 
     setIsModalOpen(false);
   };
 
   const deleteTask = (taskId: string) => {
-    setTasks(tasks => tasks.filter(task => task.id !== taskId));
-    toast({
-      title: "Tarefa excluída",
-      description: "A tarefa foi removida com sucesso",
-    });
+    removeTask(taskId)
+      .then(() => {
+        toast({ title: "Tarefa excluída", description: "A tarefa foi removida com sucesso" });
+      })
+      .catch((err) => {
+        console.error(err);
+        toast({ title: "Erro", description: "Não foi possível excluir a tarefa", variant: "destructive" });
+      });
   };
 
   const activeTask = activeId ? tasks.find(task => task.id === activeId) : null;
