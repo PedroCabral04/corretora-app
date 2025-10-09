@@ -66,6 +66,15 @@ export const Navigation = () => {
                 <CalendarIcon className="h-4 w-4" />
                 <span>Agenda</span>
               </Button>
+
+              <Button
+                variant={isActive("/clients") ? "default" : "ghost"}
+                onClick={() => navigate("/clients")}
+                className="flex items-center space-x-2"
+              >
+                <Users className="h-4 w-4" />
+                <span>Clientes</span>
+              </Button>
             </div>
 
             {/* Mobile menu (hamburger) */}
@@ -80,6 +89,7 @@ export const Navigation = () => {
                   <DropdownMenuItem onClick={() => navigate('/')}>Corretores</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/tasks')}>Tarefas</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/agenda')}>Agenda</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/clients')}>Clientes</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

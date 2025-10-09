@@ -59,6 +59,50 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          broker_id: string
+          client_name: string
+          created_at: string
+          id: string
+          interest: string
+          is_active: boolean
+          negotiation_status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          client_name: string
+          created_at?: string
+          id?: string
+          interest: string
+          is_active?: boolean
+          negotiation_status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          client_name?: string
+          created_at?: string
+          id?: string
+          interest?: string
+          is_active?: boolean
+          negotiation_status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_broker"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string
