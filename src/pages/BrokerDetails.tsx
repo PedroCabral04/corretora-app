@@ -11,17 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useBrokers } from '@/contexts/BrokersContext';
-import { 
-  ArrowLeft, 
-  TrendingUp, 
-  Home, 
-  DollarSign, 
-  Calendar,
+import { useClients } from '@/contexts/ClientsContext';
+import {
+  ArrowLeft,
+  TrendingUp,
+  Home,
+  DollarSign,
   Plus,
-  Users,
-  Clock
+  Trash2,
+  Edit
 } from "lucide-react";
 
 const BrokerDetails = () => {
@@ -29,8 +30,8 @@ const BrokerDetails = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // State management for broker data
   const { getBrokerById } = useBrokers();
+  const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
 
@@ -50,19 +51,29 @@ const BrokerDetails = () => {
     expenses: brokerFromStore && (brokerFromStore as any).expenses ? (brokerFromStore as any).expenses : []
   }));
 
+  // Filter clients for this broker
+  const brokerClients = clients.filter(client => client.broker_id === brokerId);
+
   // Modal states
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [listingsModalOpen, setListingsModalOpen] = useState(false);
   const [meetingsModalOpen, setMeetingsModalOpen] = useState(false);
   const [expensesModalOpen, setExpensesModalOpen] = useState(false);
+  const [clientsModalOpen, setClientsModalOpen] = useState(false);
 
   // Form states
   const [newSale, setNewSale] = useState({ description: "", value: "", date: "" });
   const [newListing, setNewListing] = useState({ address: "", status: "Ativa", date: "" });
   const [newMeeting, setNewMeeting] = useState({ title: "", content: "", date: "" });
   const [newExpense, setNewExpense] = useState({ description: "", cost: "", date: "" });
+  const [clientForm, setClientForm] = useState({
+    client_name: "",
+    interest: "",
+    negotiation_status: "",
+    is_active: true,
+  });
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
 
-  // Add functions
   const addSale = () => {
     if (!newSale.description || !newSale.value || !newSale.date) {
       toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
@@ -159,6 +170,64 @@ const BrokerDetails = () => {
     toast({ title: "Sucesso", description: "Gasto adicionado com sucesso!" });
   };
 
+  // Client functions
+  const resetClientForm = () => {
+    setClientForm({
+      client_name: "",
+      interest: "",
+      negotiation_status: "",
+      is_active: true,
+    });
+    setEditingClientId(null);
+  };
+
+  const handleClientSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!brokerId) return;
+
+    try {
+      if (editingClientId) {
+        await updateClient(editingClientId, clientForm);
+        toast({ title: "Cliente atualizado com sucesso!" });
+      } else {
+        await addClient({ ...clientForm, broker_id: brokerId });
+        toast({ title: "Cliente adicionado com sucesso!" });
+      }
+      setClientsModalOpen(false);
+      resetClientForm();
+    } catch (error) {
+      toast({
+        title: "Erro ao salvar cliente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditClient = (client: any) => {
+    setClientForm({
+      client_name: client.client_name,
+      interest: client.interest,
+      negotiation_status: client.negotiation_status,
+      is_active: client.is_active,
+    });
+    setEditingClientId(client.id);
+    setClientsModalOpen(true);
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir este cliente?")) {
+      try {
+        await deleteClient(id);
+        toast({ title: "Cliente excluído com sucesso!" });
+      } catch (error) {
+        toast({
+          title: "Erro ao excluir cliente",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
       "Ativa": "default",
@@ -228,13 +297,154 @@ const BrokerDetails = () => {
         </div>
 
         {/* Tabs com Detalhes */}
-        <Tabs defaultValue="sales" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="clients" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="clients">Clientes</TabsTrigger>
             <TabsTrigger value="sales">Vendas</TabsTrigger>
             <TabsTrigger value="listings">Captações</TabsTrigger>
             <TabsTrigger value="meetings">Reuniões</TabsTrigger>
             <TabsTrigger value="expenses">Gastos</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="clients">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Clientes do Corretor</CardTitle>
+                <Dialog open={clientsModalOpen} onOpenChange={(o) => { setClientsModalOpen(o); if (!o) resetClientForm(); }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Cliente
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingClientId ? "Editar Cliente" : "Novo Cliente"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleClientSubmit} className="space-y-4">
+                      <div>
+                        <Label htmlFor="client_name">Nome do Cliente</Label>
+                        <Input
+                          id="client_name"
+                          value={clientForm.client_name}
+                          onChange={(e) =>
+                            setClientForm({ ...clientForm, client_name: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="interest">Interesse</Label>
+                        <Input
+                          id="interest"
+                          value={clientForm.interest}
+                          onChange={(e) =>
+                            setClientForm({ ...clientForm, interest: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="negotiation_status">Status da Negociação</Label>
+                        <Input
+                          id="negotiation_status"
+                          value={clientForm.negotiation_status}
+                          onChange={(e) =>
+                            setClientForm({ ...clientForm, negotiation_status: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="is_active"
+                          checked={clientForm.is_active}
+                          onChange={(e) =>
+                            setClientForm({ ...clientForm, is_active: e.target.checked })
+                          }
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor="is_active">Cliente Ativo</Label>
+                      </div>
+
+                      <Button type="submit" className="w-full">
+                        {editingClientId ? "Atualizar" : "Adicionar"}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Interesse</TableHead>
+                      <TableHead>Negociação</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clientsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center">
+                          Carregando...
+                        </TableCell>
+                      </TableRow>
+                    ) : brokerClients.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center">
+                          Nenhum cliente cadastrado para este corretor
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      brokerClients.map((client) => (
+                        <TableRow key={client.id}>
+                          <TableCell>
+                            <div
+                              className={`h-3 w-3 rounded-full ${
+                                client.is_active ? "bg-green-500" : "bg-red-500"
+                              }`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {client.client_name}
+                          </TableCell>
+                          <TableCell>{client.interest}</TableCell>
+                          <TableCell>{client.negotiation_status}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditClient(client)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClient(client.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="sales">
             <Card>
@@ -439,12 +649,11 @@ const BrokerDetails = () => {
                     <div key={meeting.id} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between mb-2">
                         <h4 className="font-semibold">{meeting.title}</h4>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4 mr-1" />
+                        <Badge variant="outline">
                           {new Date(meeting.date).toLocaleDateString('pt-BR')}
-                        </div>
+                        </Badge>
                       </div>
-                      <p className="text-muted-foreground">{meeting.content}</p>
+                      <p className="text-sm text-muted-foreground">{meeting.content}</p>
                     </div>
                   ))}
                 </div>
@@ -455,7 +664,7 @@ const BrokerDetails = () => {
           <TabsContent value="expenses">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Gastos e Investimentos</CardTitle>
+                <CardTitle>Gastos Mensais</CardTitle>
                 <Dialog open={expensesModalOpen} onOpenChange={setExpensesModalOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm">
@@ -472,7 +681,7 @@ const BrokerDetails = () => {
                         <Label htmlFor="expense-description">Descrição</Label>
                         <Input
                           id="expense-description"
-                          placeholder="Ex: Tráfego Pago Facebook"
+                          placeholder="Ex: Gasolina"
                           value={newExpense.description}
                           onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
                         />
@@ -482,7 +691,7 @@ const BrokerDetails = () => {
                         <Input
                           id="expense-cost"
                           type="number"
-                          placeholder="800"
+                          placeholder="150"
                           value={newExpense.cost}
                           onChange={(e) => setNewExpense({...newExpense, cost: e.target.value})}
                         />
@@ -512,7 +721,7 @@ const BrokerDetails = () => {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-warning">
+                        <p className="font-semibold text-destructive">
                           {new Intl.NumberFormat('pt-BR', {
                             style: 'currency',
                             currency: 'BRL'
