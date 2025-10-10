@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Create auth user
+      // Create auth user - the database trigger will automatically create the profile
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -131,25 +131,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return { error: signUpError.message };
       }
 
-      // If signUp returns a user id (on instant confirmation) or the user is in data.user
-      const userId = (data as any)?.user?.id;
-
-      // Insert profile row into `profiles` table if we have a user id
-      if (userId) {
-        const { error: profileError } = await supabase.from('profiles').insert({ user_id: userId, email, name });
-        if (profileError) {
-          return { error: profileError.message };
-        }
-      }
+      // Wait a moment for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Try to get the active session now (signUp may not return session immediately)
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session;
       if (session) {
         setSession(session);
+        // Fetch the profile created by the trigger
         const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
-        if (profile) setUser({ id: profile.user_id, email: profile.email, name: profile.name });
-        else setUser({ id: session.user.id, email: session.user.email ?? '', name: (session.user.user_metadata as any)?.name ?? '' });
+        if (profile) {
+          setUser({ id: profile.user_id, email: profile.email, name: profile.name });
+        } else {
+          setUser({ id: session.user.id, email: session.user.email ?? '', name: (session.user.user_metadata as any)?.name ?? '' });
+        }
       }
 
       return {};
