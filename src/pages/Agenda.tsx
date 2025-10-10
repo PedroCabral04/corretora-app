@@ -15,15 +15,21 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { useEvents, EventItem } from "@/contexts/EventsContext";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { validateRequired, getErrorMessage } from "@/lib/masks";
 
 const Agenda = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const { events, createEvent, deleteEvent } = useEvents();
+  const { events, isLoading, createEvent, deleteEvent } = useEvents();
   const { toast } = useToast();
   const [view, setView] = useState<"month" | "week" | "day">("month");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", datetime: `${format(new Date(), 'yyyy-MM-dd')}T09:00`, priority: "Média" as "Baixa" | "Média" | "Alta", durationMinutes: 60 });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const firstDayOfMonth = startOfMonth(currentMonth);
   const lastDayOfMonth = endOfMonth(currentMonth);
@@ -43,12 +49,28 @@ const Agenda = () => {
 
   const openNewEvent = (dateIso?: string) => {
     const datePart = dateIso || format(new Date(), 'yyyy-MM-dd');
-  setForm({ title: "", description: "", datetime: `${datePart}T09:00`, priority: "Média", durationMinutes: 60 });
+    setForm({ title: "", description: "", datetime: `${datePart}T09:00`, priority: "Média", durationMinutes: 60 });
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) return;
+    const errors: Record<string, string> = {};
+    
+    if (!validateRequired(form.title)) {
+      errors.title = getErrorMessage('Título', 'required');
+    }
+    
+    if (!form.datetime) {
+      errors.datetime = getErrorMessage('Data e hora', 'required');
+    }
+    
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast?.({ title: 'Erro de validação', description: 'Por favor, corrija os erros no formulário', variant: 'destructive' });
+      return;
+    }
+    
     try {
       await createEvent({
         title: form.title,
@@ -59,15 +81,23 @@ const Agenda = () => {
       });
       toast?.({ title: 'Evento criado', description: `${form.title} em ${format(new Date(form.datetime), "dd/MM/yyyy - HH:mm")}` });
       setIsModalOpen(false);
+      setFormErrors({});
     } catch (error) {
       toast?.({ title: 'Erro', description: 'Falha ao criar evento', variant: 'destructive' });
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (event: EventItem) => {
+    setEventToDelete({ id: event.id, title: event.title });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!eventToDelete) return;
+    
     try {
-      await deleteEvent(id);
-      toast?.({ title: 'Evento removido' });
+      await deleteEvent(eventToDelete.id);
+      toast?.({ title: 'Evento removido', description: `"${eventToDelete.title}" foi excluído` });
+      setEventToDelete(null);
     } catch (error) {
       toast?.({ title: 'Erro', description: 'Falha ao remover evento', variant: 'destructive' });
     }
@@ -108,18 +138,41 @@ const Agenda = () => {
           </div>
         </div>
 
-          {/* Week view */}
+          {/* Week view - Coming soon */}
           {view === 'week' && (
             <div className="mt-4">
-              <WeekView events={events} currentDate={currentMonth} onDelete={handleDelete} />
+              <EmptyState
+                icon={CalendarIcon}
+                title="Visualização de semana"
+                description="A visualização de semana estará disponível em breve."
+              />
             </div>
           )}
           {view === 'day' && (
             <div className="mt-4">
-              <DayView date={selectedDate ?? currentMonth} events={events} onDelete={handleDelete} />
+              <EmptyState
+                icon={CalendarIcon}
+                title="Visualização de dia"
+                description="A visualização de dia estará disponível em breve."
+              />
             </div>
           )}
 
+          {isLoading ? (
+            <div className="grid grid-cols-7 gap-3">
+              {Array.from({ length: 35 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
+          ) : events.length === 0 && view === 'month' ? (
+            <EmptyState
+              icon={CalendarIcon}
+              title="Nenhum evento agendado"
+              description="Comece criando seu primeiro evento para organizar sua agenda e não perder compromissos importantes."
+              actionLabel="Criar Primeiro Evento"
+              onAction={() => openNewEvent()}
+            />
+          ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: Calendar (span 2 on large) */}
             <div className="lg:col-span-2">
@@ -154,7 +207,7 @@ const Agenda = () => {
                                 <div className="text-[11px] text-muted-foreground whitespace-nowrap">{format(new Date(ev.datetime), "dd/MM/yyyy - HH:mm")}</div>
                                 <div className="absolute top-0 right-0 flex items-center gap-1">
                                   <Badge className="whitespace-nowrap px-1.5 py-0 text-[10px]" variant={ev.priority === 'Alta' ? 'destructive' : ev.priority === 'Média' ? 'default' : 'secondary'}>{ev.priority}</Badge>
-                                  <Button aria-label="Excluir" title="Excluir" variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(ev.id)}>
+                                  <Button aria-label="Excluir" title="Excluir" variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(ev)}>
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
@@ -169,6 +222,7 @@ const Agenda = () => {
               </div>
             </div>
           </div>
+          )}
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent>
@@ -178,16 +232,35 @@ const Agenda = () => {
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="evt-title">Título</Label>
-                <Input id="evt-title" value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} />
+                <Label htmlFor="evt-title">Título *</Label>
+                <Input 
+                  id="evt-title" 
+                  value={form.title} 
+                  onChange={(e) => {
+                    setForm({...form, title: e.target.value});
+                    if (formErrors.title) setFormErrors({...formErrors, title: ''});
+                  }}
+                  className={formErrors.title ? 'border-destructive' : ''}
+                />
+                {formErrors.title && <p className="text-sm text-destructive mt-1">{formErrors.title}</p>}
               </div>
               <div>
                 <Label htmlFor="evt-desc">Descrição</Label>
-                <Textarea id="evt-desc" value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} rows={3} />
+                <Textarea id="evt-desc" value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
               </div>
               <div>
-                <Label htmlFor="evt-datetime">Data e hora</Label>
-                <Input id="evt-datetime" type="datetime-local" value={form.datetime} onChange={(e) => setForm({...form, datetime: e.target.value})} />
+                <Label htmlFor="evt-datetime">Data e hora *</Label>
+                <Input 
+                  id="evt-datetime" 
+                  type="datetime-local" 
+                  value={form.datetime} 
+                  onChange={(e) => {
+                    setForm({...form, datetime: e.target.value});
+                    if (formErrors.datetime) setFormErrors({...formErrors, datetime: ''});
+                  }}
+                  className={formErrors.datetime ? 'border-destructive' : ''}
+                />
+                {formErrors.datetime && <p className="text-sm text-destructive mt-1">{formErrors.datetime}</p>}
               </div>
               <div>
                 <Label htmlFor="evt-priority">Prioridade</Label>
@@ -208,12 +281,26 @@ const Agenda = () => {
               </div>
 
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                <Button variant="outline" onClick={() => {
+                  setIsModalOpen(false);
+                  setFormErrors({});
+                }}>Cancelar</Button>
                 <Button onClick={handleSave}>Salvar</Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Confirm Delete Dialog */}
+        <ConfirmDialog
+          open={eventToDelete !== null}
+          onOpenChange={(open) => !open && setEventToDelete(null)}
+          title="Excluir Evento"
+          description={`Tem certeza que deseja excluir o evento "${eventToDelete?.title}"? Esta ação não pode ser desfeita.`}
+          confirmLabel="Excluir"
+          cancelLabel="Cancelar"
+          onConfirm={handleConfirmDelete}
+        />
       </main>
     </div>
   );
