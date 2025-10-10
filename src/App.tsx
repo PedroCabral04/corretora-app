@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BrokersProvider } from "@/contexts/BrokersContext";
 import { EventsProvider } from "@/contexts/EventsContext";
@@ -27,19 +28,20 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <BrokersProvider>
-        <EventsProvider>
-          <TasksProvider>
-            <SalesProvider>
-              <ListingsProvider>
-                <MeetingsProvider>
-                  <ExpensesProvider>
-                    <ClientsProvider>
-                      <TooltipProvider>
-                        <Toaster />
-                        <Sonner />
-                        <BrowserRouter>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <AuthProvider>
+        <BrokersProvider>
+          <EventsProvider>
+            <TasksProvider>
+              <SalesProvider>
+                <ListingsProvider>
+                  <MeetingsProvider>
+                    <ExpensesProvider>
+                      <ClientsProvider>
+                        <TooltipProvider>
+                          <Toaster />
+                          <Sonner />
+                          <BrowserRouter>
                           <Routes>
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
@@ -83,6 +85,7 @@ const App = () => (
         </EventsProvider>
       </BrokersProvider>
     </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
