@@ -10,6 +10,7 @@ export interface Client {
   interest: string;
   negotiation_status: string;
   is_active: boolean;
+  status_color: string;
   created_at: string;
   updated_at: string;
 }

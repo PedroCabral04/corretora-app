@@ -68,6 +68,7 @@ export type Database = {
           interest: string
           is_active: boolean
           negotiation_status: string
+          status_color: string
           updated_at: string
           user_id: string
         }
@@ -79,6 +80,7 @@ export type Database = {
           interest: string
           is_active?: boolean
           negotiation_status: string
+          status_color?: string
           updated_at?: string
           user_id: string
         }
@@ -90,6 +92,7 @@ export type Database = {
           interest?: string
           is_active?: boolean
           negotiation_status?: string
+          status_color?: string
           updated_at?: string
           user_id?: string
         }

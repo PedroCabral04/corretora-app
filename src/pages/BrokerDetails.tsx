@@ -71,6 +71,7 @@ const BrokerDetails = () => {
     interest: "",
     negotiation_status: "",
     is_active: true,
+    status_color: "green",
   });
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
 
@@ -177,6 +178,7 @@ const BrokerDetails = () => {
       interest: "",
       negotiation_status: "",
       is_active: true,
+      status_color: "green",
     });
     setEditingClientId(null);
   };
@@ -209,6 +211,7 @@ const BrokerDetails = () => {
       interest: client.interest,
       negotiation_status: client.negotiation_status,
       is_active: client.is_active,
+      status_color: client.status_color || "green",
     });
     setEditingClientId(client.id);
     setClientsModalOpen(true);
@@ -384,6 +387,58 @@ const BrokerDetails = () => {
                         <Label htmlFor="is_active">Cliente Ativo</Label>
                       </div>
 
+                      <div>
+                        <Label htmlFor="status_color">Cor do Indicador</Label>
+                        <Select
+                          value={clientForm.status_color}
+                          onValueChange={(value) =>
+                            setClientForm({ ...clientForm, status_color: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="green">
+                              <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-green-500" />
+                                Verde
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="red">
+                              <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-red-500" />
+                                Vermelho
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="yellow">
+                              <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                                Amarelo
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="blue">
+                              <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-blue-500" />
+                                Azul
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="purple">
+                              <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-purple-500" />
+                                Roxo
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="orange">
+                              <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-orange-500" />
+                                Laranja
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       <Button type="submit" className="w-full">
                         {editingClientId ? "Atualizar" : "Adicionar"}
                       </Button>
@@ -420,9 +475,17 @@ const BrokerDetails = () => {
                         <TableRow key={client.id}>
                           <TableCell>
                             <div
-                              className={`h-3 w-3 rounded-full ${
-                                client.is_active ? "bg-green-500" : "bg-red-500"
-                              }`}
+                              className="h-3 w-3 rounded-full"
+                              style={{
+                                backgroundColor: 
+                                  client.status_color === 'green' ? '#22c55e' :
+                                  client.status_color === 'red' ? '#ef4444' :
+                                  client.status_color === 'yellow' ? '#eab308' :
+                                  client.status_color === 'blue' ? '#3b82f6' :
+                                  client.status_color === 'purple' ? '#a855f7' :
+                                  client.status_color === 'orange' ? '#f97316' :
+                                  '#22c55e'
+                              }}
                             />
                           </TableCell>
                           <TableCell className="font-medium">
