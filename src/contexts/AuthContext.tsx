@@ -6,6 +6,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  role: 'admin' | 'manager' | 'broker' | 'viewer' | null;
 }
 
 interface AuthContextType {
@@ -40,22 +41,46 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const handleSession = async (session: Session | null) => {
       setSession(session);
       if (session?.user) {
-        try {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
+        setTimeout(async () => {
+          try {
+            const [profileResult, roleResult] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single(),
+              supabase.rpc('get_user_role', { _user_id: session.user.id })
+            ]);
 
-          if (error) {
-            console.warn('Error fetching profile', error.message);
-            setUser({ id: session.user.id, email: session.user.email ?? '', name: '' });
-          } else if (profile) {
-            setUser({ id: profile.user_id, email: profile.email, name: profile.name });
+            const profile = profileResult.data;
+            const error = profileResult.error;
+
+            if (error) {
+              console.warn('Error fetching profile', error.message);
+              setUser({ 
+                id: session.user.id, 
+                email: session.user.email ?? '', 
+                name: '', 
+                role: roleResult.data || null 
+              });
+            } else if (profile) {
+              setUser({ 
+                id: profile.user_id, 
+                email: profile.email, 
+                name: profile.name, 
+                role: roleResult.data || null 
+              });
+            }
+          } catch (err) {
+            console.warn('Error in handleSession', err);
+            setUser({ 
+              id: session.user.id, 
+              email: session.user.email ?? '', 
+              name: '', 
+              role: null 
+            });
           }
-        } catch (err) {
-          console.warn('Error in handleSession', err);
-        }
+        }, 0);
       } else {
         setUser(null);
       }
@@ -94,17 +119,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const session = sessionData.session;
       if (session) {
         setSession(session);
-        // fetch profile and set user (fallback to session user if no profile)
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
+        // fetch profile and role and set user (fallback to session user if no profile)
+        const [profileResult, roleResult] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single(),
+          supabase.rpc('get_user_role', { _user_id: session.user.id })
+        ]);
+
+        const profile = profileResult.data;
 
         if (profile) {
-          setUser({ id: profile.user_id, email: profile.email, name: profile.name });
+          setUser({ 
+            id: profile.user_id, 
+            email: profile.email, 
+            name: profile.name, 
+            role: roleResult.data || null 
+          });
         } else {
-          setUser({ id: session.user.id, email: session.user.email ?? '', name: (session.user.user_metadata as any)?.name ?? '' });
+          setUser({ 
+            id: session.user.id, 
+            email: session.user.email ?? '', 
+            name: (session.user.user_metadata as any)?.name ?? '', 
+            role: roleResult.data || null 
+          });
         }
       }
 
@@ -147,9 +187,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const session = sessionData.session;
       if (session) {
         setSession(session);
-        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
-        if (profile) setUser({ id: profile.user_id, email: profile.email, name: profile.name });
-        else setUser({ id: session.user.id, email: session.user.email ?? '', name: (session.user.user_metadata as any)?.name ?? '' });
+        const [profileResult, roleResult] = await Promise.all([
+          supabase.from('profiles').select('*').eq('user_id', session.user.id).single(),
+          supabase.rpc('get_user_role', { _user_id: session.user.id })
+        ]);
+
+        const profile = profileResult.data;
+
+        if (profile) {
+          setUser({ 
+            id: profile.user_id, 
+            email: profile.email, 
+            name: profile.name, 
+            role: roleResult.data || null 
+          });
+        } else {
+          setUser({ 
+            id: session.user.id, 
+            email: session.user.email ?? '', 
+            name: (session.user.user_metadata as any)?.name ?? '', 
+            role: roleResult.data || null 
+          });
+        }
       }
 
       return {};

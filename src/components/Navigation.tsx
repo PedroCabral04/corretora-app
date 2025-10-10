@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon } from "lucide-react";
+import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon, Shield } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermission } from "@/hooks/usePermission";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +14,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+const roleLabels = {
+  admin: { label: 'Admin', variant: 'destructive' as const },
+  manager: { label: 'Gerente', variant: 'default' as const },
+  broker: { label: 'Corretor', variant: 'secondary' as const },
+  viewer: { label: 'Visualizador', variant: 'outline' as const },
+};
+
 export const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { hasPermission } = usePermission();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -66,6 +76,17 @@ export const Navigation = () => {
                 <CalendarIcon className="h-4 w-4" />
                 <span>Agenda</span>
               </Button>
+
+              {hasPermission('manage_users') && (
+                <Button
+                  variant={isActive("/users") ? "default" : "ghost"}
+                  onClick={() => navigate("/users")}
+                  className="flex items-center space-x-2"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span>Usuários</span>
+                </Button>
+              )}
             </div>
 
             {/* Mobile menu (hamburger) */}
@@ -80,6 +101,9 @@ export const Navigation = () => {
                   <DropdownMenuItem onClick={() => navigate('/')}>Corretores</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/tasks')}>Tarefas</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/agenda')}>Agenda</DropdownMenuItem>
+                  {hasPermission('manage_users') && (
+                    <DropdownMenuItem onClick={() => navigate('/users')}>Usuários</DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -109,6 +133,12 @@ export const Navigation = () => {
                         <p className="text-xs leading-none text-muted-foreground">
                           {user?.email}
                         </p>
+                        {user?.role && (
+                          <Badge variant={roleLabels[user.role].variant} className="text-xs w-fit mt-1">
+                            <Shield className="w-3 h-3 mr-1" />
+                            {roleLabels[user.role].label}
+                          </Badge>
+                        )}
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />

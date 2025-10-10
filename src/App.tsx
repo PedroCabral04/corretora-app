@@ -17,6 +17,7 @@ import Index from "./pages/Index";
 import BrokerDetails from "./pages/BrokerDetails";
 import Tasks from "./pages/Tasks";
 import Agenda from "./pages/Agenda";
+import Users from "./pages/Users";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -58,13 +59,18 @@ const App = () => (
                                 <Tasks />
                               </ProtectedRoute>
                             } />
-                            <Route path="/agenda" element={
-                              <ProtectedRoute>
-                                <Agenda />
-                              </ProtectedRoute>
-                            } />
-                            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                            <Route path="*" element={<NotFound />} />
+              <Route path="/agenda" element={
+                <ProtectedRoute>
+                  <Agenda />
+                </ProtectedRoute>
+              } />
+              <Route path="/users" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Users />
+                </ProtectedRoute>
+              } />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
                           </Routes>
                         </BrowserRouter>
                       </TooltipProvider>
