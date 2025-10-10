@@ -350,14 +350,25 @@ const BrokerDetails = () => {
 
                       <div>
                         <Label htmlFor="negotiation_status">Status da Negociação</Label>
-                        <Input
-                          id="negotiation_status"
+                        <Select
                           value={clientForm.negotiation_status}
-                          onChange={(e) =>
-                            setClientForm({ ...clientForm, negotiation_status: e.target.value })
+                          onValueChange={(value) =>
+                            setClientForm({ ...clientForm, negotiation_status: value })
                           }
                           required
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Primeiro Contato">Primeiro Contato</SelectItem>
+                            <SelectItem value="Em Negociação">Em Negociação</SelectItem>
+                            <SelectItem value="Proposta Enviada">Proposta Enviada</SelectItem>
+                            <SelectItem value="Aguardando Documentação">Aguardando Documentação</SelectItem>
+                            <SelectItem value="Fechamento">Fechamento</SelectItem>
+                            <SelectItem value="Perdido">Perdido</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="flex items-center space-x-2">
