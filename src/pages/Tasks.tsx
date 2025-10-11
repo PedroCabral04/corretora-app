@@ -37,18 +37,7 @@ import {
   FileText
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-
-type TaskStatus = "Backlog" | "Em Progresso" | "Em Revisão" | "Concluída";
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  dueDate: string;
-  status: TaskStatus;
-  createdAt: string;
-  priority: "Baixa" | "Média" | "Alta";
-}
+import { useTasks, TaskStatus, Task } from "@/contexts/TasksContext";
 
 interface KanbanColumnProps {
   title: string;
@@ -166,7 +155,7 @@ const KanbanColumn = ({ title, status, tasks, icon: Icon, onAddTask, onEditTask,
   const { setNodeRef } = useDroppable({ id: status });
 
   return (
-    <div ref={setNodeRef} data-droppable-id={status} className="bg-muted/30 rounded-lg p-4 min-h-[600px] w-80">
+    <div ref={setNodeRef} data-droppable-id={status} className="bg-muted/30 rounded-lg p-4 min-h-[520px] w-80 sm:w-72 md:w-80 lg:w-80 mobile:w-[85vw]">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Icon className="h-4 w-4" />
@@ -205,6 +194,7 @@ const Tasks = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { tasks, createTask, updateTask, deleteTask: removeTask } = useTasks();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -214,44 +204,8 @@ const Tasks = () => {
     priority: "Média" as "Baixa" | "Média" | "Alta"
   });
 
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Criar campanha de marketing Q1",
-      description: "Definir estratégia e materiais para campanhas do primeiro trimestre",
-      dueDate: "2024-02-15",
-      status: "Backlog",
-      priority: "Alta",
-      createdAt: "2024-01-10"
-    },
-    {
-      id: "2",
-      title: "Reunião com equipe comercial",
-      description: "Alinhamento de metas e processos",
-      dueDate: "2024-01-20",
-      status: "Em Progresso",
-      priority: "Média",
-      createdAt: "2024-01-05"
-    },
-    {
-      id: "3",
-      title: "Análise de resultados dezembro",
-      description: "Revisar métricas e performance da equipe",
-      dueDate: "2024-01-25",
-      status: "Em Revisão",
-      priority: "Alta",
-      createdAt: "2024-01-12"
-    },
-    {
-      id: "4",
-      title: "Atualizar documentação",
-      description: "Revisar e atualizar processos internos",
-      dueDate: "2024-01-18",
-      status: "Concluída",
-      priority: "Baixa",
-      createdAt: "2024-01-08"
-    }
-  ]);
+  // Remove the local state tasks array - we're using the context now
+  // const [tasks, setTasks] = useState<Task[]>([...]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -294,18 +248,12 @@ const Tasks = () => {
     const activeTaskId = active.id as string;
     const overTaskId = over.id as string;
     
-    // Se estamos sobre uma coluna (não sobre uma tarefa)
-    // If over is a column id
     const columnMatch = columns.find(col => col.status === overTaskId);
     if (columnMatch) {
       const newStatus = columnMatch.status;
-      setTasks(tasks => tasks.map(task => 
-        task.id === activeTaskId ? { ...task, status: newStatus } : task
-      ));
+      updateTask(activeTaskId, { status: newStatus });
       return;
     }
-
-    // If over is a task, ensure we don't change status here (rely on handleDragEnd)
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -320,32 +268,29 @@ const Tasks = () => {
     // If dropped over a column
     const targetColumn = columns.find(col => col.status === overTaskId);
     if (targetColumn) {
-      setTasks(tasks => tasks.map(task => 
-        task.id === activeTaskId 
-          ? { ...task, status: targetColumn.status }
-          : task
-      ));
-      
-      toast({
-        title: "Tarefa movida",
-        description: `Tarefa movida para ${targetColumn.title}`,
-      });
+      // Update task status via context
+      updateTask(activeTaskId, { status: targetColumn.status }, { optimistic: true })
+        .then(() => {
+          toast({ title: "Tarefa movida", description: `Tarefa movida para ${targetColumn.title}` });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível mover a tarefa", variant: "destructive" });
+        });
       return;
     }
 
     // If dropped over another task, move active task to the same status as the target task
     const targetTask = tasks.find(t => t.id === overTaskId);
     if (targetTask) {
-      setTasks(tasks => tasks.map(task => 
-        task.id === activeTaskId 
-          ? { ...task, status: targetTask.status }
-          : task
-      ));
-
-      toast({
-        title: "Tarefa movida",
-        description: `Tarefa movida para ${targetTask.status}`,
-      });
+      updateTask(activeTaskId, { status: targetTask.status }, { optimistic: true })
+        .then(() => {
+          toast({ title: "Tarefa movida", description: `Tarefa movida para ${targetTask.status}` });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível mover a tarefa", variant: "destructive" });
+        });
 
       return;
     }
@@ -386,37 +331,39 @@ const Tasks = () => {
     }
 
     if (editingTask) {
-      setTasks(tasks => tasks.map(task => 
-        task.id === editingTask.id 
-          ? { ...task, ...formData }
-          : task
-      ));
-      toast({
-        title: "Sucesso",
-        description: "Tarefa atualizada com sucesso",
-      });
+      // Update via context
+      updateTask(editingTask.id, formData as Partial<Task>, { optimistic: true })
+        .then(() => {
+          toast({ title: "Sucesso", description: "Tarefa atualizada com sucesso" });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível atualizar a tarefa", variant: "destructive" });
+        });
     } else {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        ...formData,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setTasks(tasks => [...tasks, newTask]);
-      toast({
-        title: "Sucesso",
-        description: "Tarefa criada com sucesso",
-      });
+      // Create via context
+      createTask(formData as Omit<Task, 'id' | 'createdAt'>, { optimistic: true })
+        .then(() => {
+          toast({ title: "Sucesso", description: "Tarefa criada com sucesso" });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível criar a tarefa", variant: "destructive" });
+        });
     }
 
     setIsModalOpen(false);
   };
 
   const deleteTask = (taskId: string) => {
-    setTasks(tasks => tasks.filter(task => task.id !== taskId));
-    toast({
-      title: "Tarefa excluída",
-      description: "A tarefa foi removida com sucesso",
-    });
+    removeTask(taskId, { optimistic: true })
+      .then(() => {
+        toast({ title: "Tarefa excluída", description: "A tarefa foi removida com sucesso" });
+      })
+      .catch((err) => {
+        console.error(err);
+        toast({ title: "Erro", description: "Não foi possível excluir a tarefa", variant: "destructive" });
+      });
   };
 
   const activeTask = activeId ? tasks.find(task => task.id === activeId) : null;
@@ -427,21 +374,25 @@ const Tasks = () => {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Kanban de Tarefas</h1>
-            <p className="text-muted-foreground mt-1">
-              Organize suas demandas e atividades
-            </p>
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Kanban de Tarefas</h1>
+              <p className="text-muted-foreground mt-1">
+                Organize suas demandas e atividades
+              </p>
+            </div>
+            <div className="flex items-center">
+              <Button onClick={() => openModal()} className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nova Tarefa</span>
+              </Button>
+            </div>
           </div>
-          <Button onClick={() => openModal()} className="flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Nova Tarefa</span>
-          </Button>
         </div>
 
         {/* Métricas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
           <MetricCard
             title="Tarefas Pendentes"
             value={pendingTasks}
@@ -482,9 +433,9 @@ const Tasks = () => {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-6 overflow-x-auto pb-4">
+          <div className="flex gap-6 overflow-x-auto pb-4 px-2">
             {columns.map(column => (
-              <div key={column.status}>
+              <div key={column.status} className="flex-shrink-0">
                 <KanbanColumn
                   title={column.title}
                   status={column.status}
@@ -512,7 +463,7 @@ const Tasks = () => {
 
       {/* Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:w-auto max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingTask ? "Editar Tarefa" : "Nova Tarefa"}

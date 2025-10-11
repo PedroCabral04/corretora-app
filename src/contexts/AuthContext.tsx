@@ -1,28 +1,30 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from "@/integrations/supabase/client";
 
-interface User {
+export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  role: 'admin' | 'manager' | 'broker' | 'viewer' | null;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
+  session: Session | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 };
 
 interface AuthProviderProps {
@@ -30,26 +32,123 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // central handler to populate user from session
+    const handleSession = async (session: Session | null) => {
+      setSession(session);
+      if (session?.user) {
+        setTimeout(async () => {
+          try {
+            const [profileResult, roleResult] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single(),
+              supabase.rpc('get_user_role', { _user_id: session.user.id })
+            ]);
+
+            const profile = profileResult.data;
+            const error = profileResult.error;
+
+            if (error) {
+              console.warn('Error fetching profile', error.message);
+              setUser({ 
+                id: session.user.id, 
+                email: session.user.email ?? '', 
+                name: '', 
+                role: roleResult.data || null 
+              });
+            } else if (profile) {
+              setUser({ 
+                id: profile.user_id, 
+                email: profile.email, 
+                name: profile.name, 
+                role: roleResult.data || null 
+              });
+            }
+          } catch (err) {
+            console.warn('Error in handleSession', err);
+            setUser({ 
+              id: session.user.id, 
+              email: session.user.email ?? '', 
+              name: '', 
+              role: null 
+            });
+          }
+        }, 0);
+      } else {
+        setUser(null);
+      }
+
+      setIsLoading(false);
+    };
+
+    // Set up auth state listener
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      handleSession(session ?? null);
+    });
+
+    // Check for existing session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        handleSession(session);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => data?.subscription?.unsubscribe?.();
+  }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulação de login - em produção seria integrado com Supabase
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (email === "admin@exemplo.com" && password === "123456") {
-        const userData = {
-          id: "1",
-          email: email,
-          name: "Administrador"
-        };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-      } else {
-        throw new Error('Credenciais inválidas');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        return { error: error.message };
       }
+
+      // Make sure we have the active session from the auth client
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (session) {
+        setSession(session);
+        // fetch profile and role and set user (fallback to session user if no profile)
+        const [profileResult, roleResult] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single(),
+          supabase.rpc('get_user_role', { _user_id: session.user.id })
+        ]);
+
+        const profile = profileResult.data;
+
+        if (profile) {
+          setUser({ 
+            id: profile.user_id, 
+            email: profile.email, 
+            name: profile.name, 
+            role: roleResult.data || null 
+          });
+        } else {
+          setUser({ 
+            id: session.user.id, 
+            email: session.user.email ?? '', 
+            name: (session.user.user_metadata as any)?.name ?? '', 
+            role: roleResult.data || null 
+          });
+        }
+      }
+
+      return {};
     } finally {
       setIsLoading(false);
     }
@@ -58,36 +157,71 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulação de registro
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const userData = {
-        id: Math.random().toString(),
-        email: email,
-        name: name
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Create auth user - the database trigger will automatically create the profile
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: { name }
+        }
+      });
+
+      if (signUpError) {
+        return { error: signUpError.message };
+      }
+
+      // Wait a moment for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Try to get the active session now (signUp may not return session immediately)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (session) {
+        setSession(session);
+        const [profileResult, roleResult] = await Promise.all([
+          supabase.from('profiles').select('*').eq('user_id', session.user.id).single(),
+          supabase.rpc('get_user_role', { _user_id: session.user.id })
+        ]);
+
+        const profile = profileResult.data;
+
+        if (profile) {
+          setUser({ 
+            id: profile.user_id, 
+            email: profile.email, 
+            name: profile.name, 
+            role: roleResult.data || null 
+          });
+        } else {
+          setUser({ 
+            id: session.user.id, 
+            email: session.user.email ?? '', 
+            name: (session.user.user_metadata as any)?.name ?? '', 
+            role: roleResult.data || null 
+          });
+        }
+      }
+
+      return {};
+    } catch (err: any) {
+      return { error: err?.message ?? 'Erro desconhecido ao registrar' };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-  };
-
-  // Verificar se há usuário no localStorage ao inicializar
-  React.useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      setUser(null);
+      setSession(null);
     }
-  }, []);
+  };
 
   const value = {
     user,
+    session,
     isLoading,
     login,
     register,
@@ -95,5 +229,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isAuthenticated: !!user
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

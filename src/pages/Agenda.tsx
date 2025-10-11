@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,20 +14,11 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-
-interface EventItem {
-  id: string;
-  title: string;
-  description?: string;
-  // ISO date-time string: YYYY-MM-DDTHH:mm
-  datetime: string;
-  priority?: "Baixa" | "Média" | "Alta";
-  durationMinutes?: number;
-}
+import { useEvents, EventItem } from "@/contexts/EventsContext";
 
 const Agenda = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const { events, createEvent, deleteEvent } = useEvents();
   const { toast } = useToast();
   const [view, setView] = useState<"month" | "week" | "day">("month");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -56,25 +47,30 @@ const Agenda = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim()) return;
-    const newEvent: EventItem = { id: Date.now().toString(), ...form };
-    setEvents(prev => {
-      const next = [...prev, newEvent].sort((a,b) => a.datetime.localeCompare(b.datetime));
-      try { localStorage.setItem('agenda_events_v1', JSON.stringify(next)); } catch(e) {}
-      return next;
-    });
-    toast?.({ title: 'Evento criado', description: `${form.title} em ${format(new Date(form.datetime), "dd/MM/yyyy - HH:mm")}` });
-    setIsModalOpen(false);
+    try {
+      await createEvent({
+        title: form.title,
+        description: form.description,
+        datetime: form.datetime,
+        priority: form.priority,
+        durationMinutes: form.durationMinutes
+      });
+      toast?.({ title: 'Evento criado', description: `${form.title} em ${format(new Date(form.datetime), "dd/MM/yyyy - HH:mm")}` });
+      setIsModalOpen(false);
+    } catch (error) {
+      toast?.({ title: 'Erro', description: 'Falha ao criar evento', variant: 'destructive' });
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setEvents(prev => {
-      const next = prev.filter(e => e.id !== id);
-      try { localStorage.setItem('agenda_events_v1', JSON.stringify(next)); } catch(e) {}
-      return next;
-    });
-    toast?.({ title: 'Evento removido' });
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteEvent(id);
+      toast?.({ title: 'Evento removido' });
+    } catch (error) {
+      toast?.({ title: 'Erro', description: 'Falha ao remover evento', variant: 'destructive' });
+    }
   };
 
   const eventsForDay = (d: Date) => {

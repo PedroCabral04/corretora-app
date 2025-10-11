@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Home, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import heroImage from '@/assets/hero-image.jpg';
+import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -23,6 +24,7 @@ const Register = () => {
   
   const { register, isLoading, isAuthenticated } = useAuth();
   const { createBroker } = useBrokers();
+  const navigate = useNavigate();
   
   // Redirecionar se já estiver logado
   if (isAuthenticated) {
@@ -54,11 +56,15 @@ const Register = () => {
     }
 
     try {
-      await register(name, email, password);
-      toast({
-        title: "Conta criada com sucesso!",
-        description: "Bem-vindo ao CorretoraApp",
-      });
+      const res = await register(name, email, password);
+      if (res?.error) {
+        setError(res.error);
+        toast({ title: 'Erro no cadastro', description: res.error, variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: "Conta criada com sucesso!", description: "Bem-vindo ao CorretoraApp" });
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta');
       toast({
