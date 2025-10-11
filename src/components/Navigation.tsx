@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon, Shield, Menu, User2, Moon, Sun } from "lucide-react";
+import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon, Shield, Menu, User2, Moon, Sun, Target } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
@@ -74,6 +74,7 @@ export const Navigation = () => {
     { path: "/", label: "Corretores", icon: Users },
     { path: "/tasks", label: "Tarefas", icon: CheckSquare },
     { path: "/agenda", label: "Agenda", icon: CalendarIcon },
+    { path: "/goals", label: "Metas", icon: Target },
     ...(hasPermission('manage_users') ? [{ path: "/users", label: "Usuários", icon: Shield }] : []),
   ];
 

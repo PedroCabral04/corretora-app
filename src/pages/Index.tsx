@@ -5,6 +5,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { ChartCard } from "@/components/ChartCard";
 import { FilterBar } from "@/components/FilterBar";
 import { Pagination } from "@/components/Pagination";
+import { GoalsSummary } from "@/components/GoalsSummary";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -493,6 +494,9 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="dashboard" className="space-y-6 mt-6">
+            {/* Goals Summary */}
+            <GoalsSummary />
+
             {/* Gráficos */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ChartCard

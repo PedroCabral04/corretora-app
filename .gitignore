@@ -25,3 +25,6 @@ dist-ssr
 *.sln
 *.sw?
 package-lock.json
+package.json
+
+*.md
