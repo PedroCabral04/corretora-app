@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
+import { NotificationBell } from "@/components/NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -129,6 +130,9 @@ export const Navigation = () => {
 
           {/* Right Side - User Menu and Mobile Nav */}
           <div className="flex items-center space-x-2">
+            {/* Notifications */}
+            <NotificationBell />
+            
             {/* Theme Toggle */}
             <ThemeToggle />
             

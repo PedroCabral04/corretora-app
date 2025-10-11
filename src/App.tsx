@@ -14,6 +14,7 @@ import { MeetingsProvider } from "@/contexts/MeetingsContext";
 import { ExpensesProvider } from "@/contexts/ExpensesContext";
 import { ClientsProvider } from "@/contexts/ClientsContext";
 import { GoalsProvider } from "@/contexts/GoalsContext";
+import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import BrokerDetails from "./pages/BrokerDetails";
@@ -41,10 +42,11 @@ const App = () => (
                     <ExpensesProvider>
                       <ClientsProvider>
                         <GoalsProvider>
-                          <TooltipProvider>
-                            <Toaster />
-                            <Sonner />
-                            <BrowserRouter>
+                          <NotificationsProvider>
+                            <TooltipProvider>
+                              <Toaster />
+                              <Sonner />
+                              <BrowserRouter>
                           <Routes>
                             <Route path="/login" element={<Login />} />
                             <Route path="/register" element={<Register />} />
@@ -84,16 +86,17 @@ const App = () => (
                           </Routes>
                         </BrowserRouter>
                       </TooltipProvider>
-                    </GoalsProvider>
-                  </ClientsProvider>
-                </ExpensesProvider>
-              </MeetingsProvider>
-            </ListingsProvider>
-          </SalesProvider>
-        </TasksProvider>
-      </EventsProvider>
-    </BrokersProvider>
-  </AuthProvider>
+                    </NotificationsProvider>
+                  </GoalsProvider>
+                </ClientsProvider>
+              </ExpensesProvider>
+            </MeetingsProvider>
+          </ListingsProvider>
+        </SalesProvider>
+      </TasksProvider>
+    </EventsProvider>
+  </BrokersProvider>
+</AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

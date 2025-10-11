@@ -6,6 +6,7 @@ import { ChartCard } from "@/components/ChartCard";
 import { FilterBar } from "@/components/FilterBar";
 import { Pagination } from "@/components/Pagination";
 import { GoalsSummary } from "@/components/GoalsSummary";
+import { NotificationsSummary } from "@/components/NotificationsSummary";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -494,6 +495,9 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="dashboard" className="space-y-6 mt-6">
+            {/* Notifications Summary */}
+            <NotificationsSummary />
+            
             {/* Goals Summary */}
             <GoalsSummary />
 
