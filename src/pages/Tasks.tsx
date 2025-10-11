@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Navigation } from "@/components/Navigation";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MetricCard } from "@/components/MetricCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,10 +35,14 @@ import {
   Play,
   Pause,
   CheckCircle,
-  FileText
+  FileText,
+  ListTodo
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useTasks, TaskStatus, Task } from "@/contexts/TasksContext";
+import { TaskCardSkeleton, MetricCardSkeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface KanbanColumnProps {
   title: string;
@@ -193,8 +198,9 @@ const Tasks = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
   const { toast } = useToast();
-  const { tasks, createTask, updateTask, deleteTask: removeTask } = useTasks();
+  const { tasks, isLoading, createTask, updateTask, deleteTask: removeTask } = useTasks();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -356,14 +362,23 @@ const Tasks = () => {
   };
 
   const deleteTask = (taskId: string) => {
-    removeTask(taskId, { optimistic: true })
-      .then(() => {
-        toast({ title: "Tarefa excluída", description: "A tarefa foi removida com sucesso" });
-      })
-      .catch((err) => {
-        console.error(err);
-        toast({ title: "Erro", description: "Não foi possível excluir a tarefa", variant: "destructive" });
-      });
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setTaskToDelete({ id: task.id, title: task.title });
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete) return;
+    
+    try {
+      await removeTask(taskToDelete.id, { optimistic: true });
+      toast({ title: "Tarefa excluída", description: `"${taskToDelete.title}" foi removida com sucesso` });
+      setTaskToDelete(null);
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro", description: "Não foi possível excluir a tarefa", variant: "destructive" });
+    }
   };
 
   const activeTask = activeId ? tasks.find(task => task.id === activeId) : null;
@@ -373,6 +388,12 @@ const Tasks = () => {
       <Navigation />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Breadcrumbs */}
+        <Breadcrumbs 
+          items={[{ label: "Tarefas" }]} 
+          className="mb-6"
+        />
+        
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -392,6 +413,13 @@ const Tasks = () => {
         </div>
 
         {/* Métricas */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
           <MetricCard
             title="Tarefas Pendentes"
@@ -412,6 +440,7 @@ const Tasks = () => {
             variant="info"
           />
         </div>
+        )}
 
         {/* Busca */}
         <div className="mb-6">
@@ -427,6 +456,31 @@ const Tasks = () => {
         </div>
 
         {/* Kanban Board */}
+        {isLoading ? (
+          <div className="flex gap-6 overflow-x-auto pb-4 px-2">
+            {columns.map(column => (
+              <div key={column.status} className="bg-muted/30 rounded-lg p-4 min-h-[520px] w-80 flex-shrink-0">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <column.icon className="h-4 w-4" />
+                    <h3 className="font-semibold text-sm">{column.title}</h3>
+                  </div>
+                </div>
+                <TaskCardSkeleton />
+                <TaskCardSkeleton />
+                <TaskCardSkeleton />
+              </div>
+            ))}
+          </div>
+        ) : tasks.length === 0 ? (
+          <EmptyState
+            icon={ListTodo}
+            title="Nenhuma tarefa cadastrada"
+            description="Comece criando sua primeira tarefa para organizar suas atividades e acompanhar seu progresso."
+            actionLabel="Criar Primeira Tarefa"
+            onAction={() => openModal()}
+          />
+        ) : (
         <DndContext 
           sensors={sensors}
           onDragStart={handleDragStart}
@@ -459,6 +513,7 @@ const Tasks = () => {
             ) : null}
           </DragOverlay>
         </DndContext>
+        )}
       </main>
 
       {/* Modal */}
@@ -553,6 +608,17 @@ const Tasks = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={taskToDelete !== null}
+        onOpenChange={(open) => !open && setTaskToDelete(null)}
+        title="Excluir Tarefa"
+        description={`Tem certeza que deseja excluir a tarefa "${taskToDelete?.title}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 };
