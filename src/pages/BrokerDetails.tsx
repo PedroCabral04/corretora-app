@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -37,10 +37,10 @@ const BrokerDetails = () => {
 
   const { getBrokerById } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
-  const { createListing, getListingsByBrokerId } = useListings();
-  const { createSale, getSalesByBrokerId } = useSales();
-  const { createMeeting, getMeetingsByBrokerId } = useMeetings();
-  const { createExpense, getExpensesByBrokerId } = useExpenses();
+  const { listings, createListing, getListingsByBrokerId } = useListings();
+  const { sales, createSale, getSalesByBrokerId } = useSales();
+  const { meetings, createMeeting, getMeetingsByBrokerId } = useMeetings();
+  const { expenses, createExpense, getExpensesByBrokerId } = useExpenses();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
 
@@ -62,6 +62,49 @@ const BrokerDetails = () => {
 
   // Filter clients for this broker
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
+
+  // Carrega os dados dos contextos quando o brokerId ou os dados mudam
+  useEffect(() => {
+    if (!brokerId) return;
+
+    const brokerListings = getListingsByBrokerId(brokerId);
+    const brokerSales = getSalesByBrokerId(brokerId);
+    const brokerMeetings = getMeetingsByBrokerId(brokerId);
+    const brokerExpenses = getExpensesByBrokerId(brokerId);
+
+    // Atualiza o estado com os dados reais do banco
+    setBrokerData(prev => ({
+      ...prev,
+      listings: brokerListings.map(l => ({
+        id: l.id,
+        address: l.propertyAddress,
+        status: l.status,
+        date: l.listingDate
+      })),
+      sales: brokerSales.map(s => ({
+        id: s.id,
+        description: s.propertyAddress,
+        value: s.saleValue,
+        date: s.saleDate
+      })),
+      meetings: brokerMeetings.map(m => ({
+        id: m.id,
+        title: m.meetingType,
+        content: m.notes || '',
+        date: m.meetingDate
+      })),
+      expenses: brokerExpenses.map(e => ({
+        id: e.id,
+        description: e.description,
+        cost: e.amount,
+        date: e.expenseDate
+      })),
+      totalSales: brokerSales.length,
+      totalListings: brokerListings.filter(l => l.status === 'Ativa').length,
+      totalValue: brokerSales.reduce((sum, s) => sum + s.saleValue, 0),
+      monthlyExpenses: brokerExpenses.reduce((sum, e) => sum + e.amount, 0)
+    }));
+  }, [brokerId, listings, sales, meetings, expenses, getListingsByBrokerId, getSalesByBrokerId, getMeetingsByBrokerId, getExpensesByBrokerId]);
 
   // Modal states
   const [salesModalOpen, setSalesModalOpen] = useState(false);
@@ -105,24 +148,11 @@ const BrokerDetails = () => {
         saleDate: newSale.date
       });
 
-      // Atualiza o estado local para refletir a mudança imediatamente
-      const sale = {
-        id: Date.now().toString(),
-        description: newSale.propertyAddress,
-        value: parseFloat(newSale.saleValue),
-        date: newSale.date
-      };
-
-      setBrokerData(prev => ({
-        ...prev,
-        sales: [...prev.sales, sale],
-        totalSales: prev.totalSales + 1,
-        totalValue: prev.totalValue + sale.value
-      }));
-
       setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
       setSalesModalOpen(false);
       toast({ title: "Sucesso", description: "Venda adicionada com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao adicionar venda:", error);
       toast({ 
@@ -154,23 +184,11 @@ const BrokerDetails = () => {
         status: newListing.status as 'Ativa' | 'Vendida' | 'Cancelada'
       });
 
-      // Atualiza o estado local para refletir a mudança imediatamente
-      const listing = {
-        id: Date.now().toString(),
-        address: newListing.address,
-        status: newListing.status,
-        date: newListing.date
-      };
-
-      setBrokerData(prev => ({
-        ...prev,
-        listings: [...prev.listings, listing],
-        totalListings: prev.totalListings + 1
-      }));
-
       setNewListing({ address: "", ownerName: "", propertyValue: "", status: "Ativa", date: "" });
       setListingsModalOpen(false);
       toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao adicionar captação:", error);
       toast({ 
@@ -201,22 +219,11 @@ const BrokerDetails = () => {
         notes: newMeeting.notes || undefined
       });
 
-      // Atualiza o estado local para refletir a mudança imediatamente
-      const meeting = {
-        id: Date.now().toString(),
-        title: newMeeting.meetingType,
-        content: newMeeting.notes,
-        date: new Date(newMeeting.date).toISOString()
-      };
-
-      setBrokerData(prev => ({
-        ...prev,
-        meetings: [...prev.meetings, meeting]
-      }));
-
       setNewMeeting({ clientName: "", meetingType: "", notes: "", date: "" });
       setMeetingsModalOpen(false);
       toast({ title: "Sucesso", description: "Reunião adicionada com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao adicionar reunião:", error);
       toast({ 
@@ -247,23 +254,11 @@ const BrokerDetails = () => {
         expenseDate: newExpense.date
       });
 
-      // Atualiza o estado local para refletir a mudança imediatamente
-      const expense = {
-        id: Date.now().toString(),
-        description: newExpense.description,
-        cost: parseFloat(newExpense.amount),
-        date: newExpense.date
-      };
-
-      setBrokerData(prev => ({
-        ...prev,
-        expenses: [...prev.expenses, expense],
-        monthlyExpenses: prev.monthlyExpenses + expense.cost
-      }));
-
       setNewExpense({ description: "", amount: "", category: "", date: "" });
       setExpensesModalOpen(false);
       toast({ title: "Sucesso", description: "Gasto adicionado com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao adicionar gasto:", error);
       toast({ 
