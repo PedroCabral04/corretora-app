@@ -425,9 +425,9 @@ function MonthView({ currentDate, events, onNewEvent, onEditEvent, onDeleteEvent
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-card">
+    <div className="border rounded-lg overflow-hidden bg-card max-h-[calc(100vh-250px)] overflow-y-auto">
       {/* Week day headers */}
-      <div className="grid grid-cols-7 bg-muted/50">
+      <div className="sticky top-0 z-10 grid grid-cols-7 bg-muted/50">
         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
           <div key={d} className="p-3 text-center text-sm font-semibold border-r last:border-r-0">
             {d}
@@ -529,9 +529,9 @@ function WeekView({ currentDate, events, onNewEvent, onEditEvent, onDeleteEvent 
   const hours = Array.from({ length: 24 }).map((_, i) => i);
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-card">
+    <div className="border rounded-lg overflow-hidden bg-card max-h-[calc(100vh-250px)] overflow-y-auto">
       {/* Header with days */}
-      <div className="grid" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
+      <div className="sticky top-0 z-10 grid bg-background" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
         <div className="bg-muted p-3 border-r">
           <Clock className="h-4 w-4 text-muted-foreground" />
         </div>
@@ -555,7 +555,7 @@ function WeekView({ currentDate, events, onNewEvent, onEditEvent, onDeleteEvent 
       {/* Time grid */}
       <div className="grid" style={{ gridTemplateColumns: '80px repeat(7, 1fr)' }}>
         {/* Hour labels */}
-        <div className="border-r">
+        <div className="sticky left-0 z-10 border-r bg-background">
           {hours.map(h => (
             <div key={h} className="h-16 px-2 py-1 text-xs text-muted-foreground border-b text-right">
               {String(h).padStart(2, '0')}:00
@@ -658,11 +658,11 @@ function DayView({ currentDate, events, onNewEvent, onEditEvent, onDeleteEvent }
   const columns = layoutEvents(dayEvents);
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-card">
+    <div className="border rounded-lg overflow-hidden bg-card max-h-[calc(100vh-250px)] overflow-y-auto">
       {/* Time grid */}
       <div className="grid" style={{ gridTemplateColumns: '80px 1fr' }}>
         {/* Hour labels */}
-        <div className="border-r bg-muted/50">
+        <div className="sticky left-0 z-10 border-r bg-muted/50">
           {hours.map(h => (
             <div key={h} className="h-20 px-2 py-1 text-xs text-muted-foreground border-b text-right">
               {String(h).padStart(2, '0')}:00

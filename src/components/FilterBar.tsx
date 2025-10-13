@@ -66,7 +66,7 @@ export const FilterBar = ({
   const hasActiveFilters = searchValue || selectedStatus || startDate || endDate;
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("sticky top-16 z-20 bg-background/95 backdrop-blur-sm py-4 -mx-4 px-4 sm:-mx-6 sm:px-6 border-b space-y-4", className)}>
       {/* Primary Search Bar */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">

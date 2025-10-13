@@ -569,7 +569,7 @@ const BrokerDetails = () => {
                 </Dialog>
               </CardHeader>
               <CardContent>
-                <Table>
+                <Table containerClassName="max-h-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Status</TableHead>
