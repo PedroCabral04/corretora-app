@@ -18,6 +18,7 @@ export interface Notification {
   relatedId?: string;
   priority: NotificationPriority;
   isRead: boolean;
+  dismissedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +65,8 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     }
 
     try {
+      // Fetch ALL notifications including dismissed ones (for duplicate checking)
+      // But we'll filter dismissed ones from the visible list
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -81,6 +84,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
         relatedId: item.related_id,
         priority: item.priority as NotificationPriority,
         isRead: item.is_read,
+        dismissedAt: (item as any).dismissed_at,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
       }));
@@ -177,34 +181,43 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
   };
 
   const deleteNotification = async (id: string) => {
+    // Instead of deleting, mark as dismissed
     const { error } = await supabase
       .from('notifications')
-      .delete()
+      .update({ dismissed_at: new Date().toISOString() } as any)
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting notification:', error);
+      console.error('Error dismissing notification:', error);
       return;
     }
 
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    // Update local state to mark as dismissed
+    setNotifications(prev =>
+      prev.map(n => n.id === id ? { ...n, dismissedAt: new Date().toISOString() } : n)
+    );
   };
 
   const deleteAllRead = async () => {
     if (!user) return;
 
+    // Instead of deleting, mark all read notifications as dismissed
     const { error } = await supabase
       .from('notifications')
-      .delete()
+      .update({ dismissed_at: new Date().toISOString() } as any)
       .eq('user_id', user.id)
       .eq('is_read', true);
 
     if (error) {
-      console.error('Error deleting read notifications:', error);
+      console.error('Error dismissing read notifications:', error);
       return;
     }
 
-    setNotifications(prev => prev.filter(n => !n.isRead));
+    // Update local state to mark all read as dismissed
+    const now = new Date().toISOString();
+    setNotifications(prev =>
+      prev.map(n => n.isRead ? { ...n, dismissedAt: now } : n)
+    );
   };
 
   const checkAndCreateDeadlineNotifications = useCallback(async () => {
@@ -224,7 +237,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
       if (task.id.startsWith('temp-')) continue;
 
       const dueDate = new Date(task.dueDate);
-      // Check for existing notification in the last 24 hours (including read ones)
+      // Check for existing notification in the last 24 hours (including read AND dismissed ones)
       const existingNotification = notifications.find(
         n => n.relatedId === task.id && 
              n.type === 'task' && 
@@ -418,12 +431,14 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     await fetchNotifications();
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Filter out dismissed notifications for display
+  const visibleNotifications = notifications.filter(n => !n.dismissedAt);
+  const unreadCount = visibleNotifications.filter(n => !n.isRead).length;
 
   return (
     <NotificationsContext.Provider
       value={{
-        notifications,
+        notifications: visibleNotifications,
         unreadCount,
         isLoading,
         createNotification,
