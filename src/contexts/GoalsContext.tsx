@@ -39,6 +39,7 @@ interface GoalsContextType {
   getCompletedGoals: () => Goal[];
   getOverdueGoals: () => Goal[];
   refreshGoals: () => Promise<void>;
+  recalculateAllGoals: () => Promise<void>;
 }
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined);
@@ -226,6 +227,17 @@ export const GoalsProvider = ({ children }: GoalsProviderProps) => {
     await fetchGoals();
   };
 
+  const recalculateAllGoals = async (): Promise<void> => {
+    try {
+      const { error } = await supabase.rpc('recalculate_all_goals');
+      if (error) throw error;
+      await fetchGoals(); // Refresh after recalculation
+    } catch (error) {
+      console.error('Error recalculating goals:', error);
+      throw error;
+    }
+  };
+
   return (
     <GoalsContext.Provider
       value={{
@@ -239,7 +251,8 @@ export const GoalsProvider = ({ children }: GoalsProviderProps) => {
         getActiveGoals,
         getCompletedGoals,
         getOverdueGoals,
-        refreshGoals
+        refreshGoals,
+        recalculateAllGoals
       }}
     >
       {children}

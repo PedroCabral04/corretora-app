@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -16,6 +16,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useBrokers } from '@/contexts/BrokersContext';
 import { useClients } from '@/contexts/ClientsContext';
+import { useListings } from '@/contexts/ListingsContext';
+import { useSales } from '@/contexts/SalesContext';
+import { useMeetings } from '@/contexts/MeetingsContext';
+import { useExpenses } from '@/contexts/ExpensesContext';
 import {
   ArrowLeft,
   TrendingUp,
@@ -33,6 +37,10 @@ const BrokerDetails = () => {
 
   const { getBrokerById } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
+  const { listings, createListing, getListingsByBrokerId } = useListings();
+  const { sales, createSale, getSalesByBrokerId } = useSales();
+  const { meetings, createMeeting, getMeetingsByBrokerId } = useMeetings();
+  const { expenses, createExpense, getExpensesByBrokerId } = useExpenses();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
 
@@ -55,6 +63,49 @@ const BrokerDetails = () => {
   // Filter clients for this broker
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
 
+  // Carrega os dados dos contextos quando o brokerId ou os dados mudam
+  useEffect(() => {
+    if (!brokerId) return;
+
+    const brokerListings = getListingsByBrokerId(brokerId);
+    const brokerSales = getSalesByBrokerId(brokerId);
+    const brokerMeetings = getMeetingsByBrokerId(brokerId);
+    const brokerExpenses = getExpensesByBrokerId(brokerId);
+
+    // Atualiza o estado com os dados reais do banco
+    setBrokerData(prev => ({
+      ...prev,
+      listings: brokerListings.map(l => ({
+        id: l.id,
+        address: l.propertyAddress,
+        status: l.status,
+        date: l.listingDate
+      })),
+      sales: brokerSales.map(s => ({
+        id: s.id,
+        description: s.propertyAddress,
+        value: s.saleValue,
+        date: s.saleDate
+      })),
+      meetings: brokerMeetings.map(m => ({
+        id: m.id,
+        title: m.meetingType,
+        content: m.notes || '',
+        date: m.meetingDate
+      })),
+      expenses: brokerExpenses.map(e => ({
+        id: e.id,
+        description: e.description,
+        cost: e.amount,
+        date: e.expenseDate
+      })),
+      totalSales: brokerSales.length,
+      totalListings: brokerListings.filter(l => l.status === 'Ativa').length,
+      totalValue: brokerSales.reduce((sum, s) => sum + s.saleValue, 0),
+      monthlyExpenses: brokerExpenses.reduce((sum, e) => sum + e.amount, 0)
+    }));
+  }, [brokerId, listings, sales, meetings, expenses, getListingsByBrokerId, getSalesByBrokerId, getMeetingsByBrokerId, getExpensesByBrokerId]);
+
   // Modal states
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [listingsModalOpen, setListingsModalOpen] = useState(false);
@@ -63,10 +114,10 @@ const BrokerDetails = () => {
   const [clientsModalOpen, setClientsModalOpen] = useState(false);
 
   // Form states
-  const [newSale, setNewSale] = useState({ description: "", value: "", date: "" });
-  const [newListing, setNewListing] = useState({ address: "", status: "Ativa", date: "" });
-  const [newMeeting, setNewMeeting] = useState({ title: "", content: "", date: "" });
-  const [newExpense, setNewExpense] = useState({ description: "", cost: "", date: "" });
+  const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
+  const [newListing, setNewListing] = useState({ address: "", ownerName: "", propertyValue: "", status: "Ativa", date: "" });
+  const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
+  const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: "", date: "" });
   const [clientForm, setClientForm] = useState({
     client_name: "",
     interest: "",
@@ -76,100 +127,146 @@ const BrokerDetails = () => {
   });
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
 
-  const addSale = () => {
-    if (!newSale.description || !newSale.value || !newSale.date) {
-      toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
+  const addSale = async () => {
+    if (!newSale.propertyAddress || !newSale.clientName || !newSale.saleValue || !newSale.commission || !newSale.date) {
+      toast({ title: "Erro", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
 
-    const sale = {
-      id: Date.now().toString(),
-      description: newSale.description,
-      value: parseFloat(newSale.value),
-      date: newSale.date
-    };
+    if (!brokerId) {
+      toast({ title: "Erro", description: "ID do corretor não encontrado", variant: "destructive" });
+      return;
+    }
 
-    setBrokerData(prev => ({
-      ...prev,
-      sales: [...prev.sales, sale],
-      totalSales: prev.totalSales + 1,
-      totalValue: prev.totalValue + sale.value
-    }));
+    try {
+      await createSale({
+        brokerId: brokerId,
+        propertyAddress: newSale.propertyAddress,
+        clientName: newSale.clientName,
+        saleValue: parseFloat(newSale.saleValue),
+        commission: parseFloat(newSale.commission),
+        saleDate: newSale.date
+      });
 
-    setNewSale({ description: "", value: "", date: "" });
-    setSalesModalOpen(false);
-    toast({ title: "Sucesso", description: "Venda adicionada com sucesso!" });
+      setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
+      setSalesModalOpen(false);
+      toast({ title: "Sucesso", description: "Venda adicionada com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
+    } catch (error) {
+      console.error("Erro ao adicionar venda:", error);
+      toast({ 
+        title: "Erro", 
+        description: error instanceof Error ? error.message : "Erro ao adicionar venda", 
+        variant: "destructive" 
+      });
+    }
   };
 
-  const addListing = () => {
-    if (!newListing.address || !newListing.date) {
-      toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
+  const addListing = async () => {
+    if (!newListing.address || !newListing.ownerName || !newListing.propertyValue || !newListing.date) {
+      toast({ title: "Erro", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
 
-    const listing = {
-      id: Date.now().toString(),
-      address: newListing.address,
-      status: newListing.status,
-      date: newListing.date
-    };
+    if (!brokerId) {
+      toast({ title: "Erro", description: "ID do corretor não encontrado", variant: "destructive" });
+      return;
+    }
 
-    setBrokerData(prev => ({
-      ...prev,
-      listings: [...prev.listings, listing],
-      totalListings: prev.totalListings + 1
-    }));
+    try {
+      await createListing({
+        brokerId: brokerId,
+        propertyAddress: newListing.address,
+        ownerName: newListing.ownerName,
+        propertyValue: parseFloat(newListing.propertyValue),
+        listingDate: newListing.date,
+        status: newListing.status as 'Ativa' | 'Vendida' | 'Cancelada'
+      });
 
-    setNewListing({ address: "", status: "Ativa", date: "" });
-    setListingsModalOpen(false);
-    toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
+      setNewListing({ address: "", ownerName: "", propertyValue: "", status: "Ativa", date: "" });
+      setListingsModalOpen(false);
+      toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
+    } catch (error) {
+      console.error("Erro ao adicionar captação:", error);
+      toast({ 
+        title: "Erro", 
+        description: error instanceof Error ? error.message : "Erro ao adicionar captação", 
+        variant: "destructive" 
+      });
+    }
   };
 
-  const addMeeting = () => {
-    if (!newMeeting.title || !newMeeting.content || !newMeeting.date) {
-      toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
+  const addMeeting = async () => {
+    if (!newMeeting.clientName || !newMeeting.meetingType || !newMeeting.date) {
+      toast({ title: "Erro", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
 
-    const meeting = {
-      id: Date.now().toString(),
-      title: newMeeting.title,
-      content: newMeeting.content,
-      date: new Date(newMeeting.date).toISOString()
-    };
+    if (!brokerId) {
+      toast({ title: "Erro", description: "ID do corretor não encontrado", variant: "destructive" });
+      return;
+    }
 
-    setBrokerData(prev => ({
-      ...prev,
-      meetings: [...prev.meetings, meeting]
-    }));
+    try {
+      await createMeeting({
+        brokerId: brokerId,
+        clientName: newMeeting.clientName,
+        meetingType: newMeeting.meetingType,
+        meetingDate: newMeeting.date,
+        notes: newMeeting.notes || undefined
+      });
 
-    setNewMeeting({ title: "", content: "", date: "" });
-    setMeetingsModalOpen(false);
-    toast({ title: "Sucesso", description: "Reunião adicionada com sucesso!" });
+      setNewMeeting({ clientName: "", meetingType: "", notes: "", date: "" });
+      setMeetingsModalOpen(false);
+      toast({ title: "Sucesso", description: "Reunião adicionada com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
+    } catch (error) {
+      console.error("Erro ao adicionar reunião:", error);
+      toast({ 
+        title: "Erro", 
+        description: error instanceof Error ? error.message : "Erro ao adicionar reunião", 
+        variant: "destructive" 
+      });
+    }
   };
 
-  const addExpense = () => {
-    if (!newExpense.description || !newExpense.cost || !newExpense.date) {
-      toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
+  const addExpense = async () => {
+    if (!newExpense.description || !newExpense.amount || !newExpense.category || !newExpense.date) {
+      toast({ title: "Erro", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
 
-    const expense = {
-      id: Date.now().toString(),
-      description: newExpense.description,
-      cost: parseFloat(newExpense.cost),
-      date: newExpense.date
-    };
+    if (!brokerId) {
+      toast({ title: "Erro", description: "ID do corretor não encontrado", variant: "destructive" });
+      return;
+    }
 
-    setBrokerData(prev => ({
-      ...prev,
-      expenses: [...prev.expenses, expense],
-      monthlyExpenses: prev.monthlyExpenses + expense.cost
-    }));
+    try {
+      await createExpense({
+        brokerId: brokerId,
+        description: newExpense.description,
+        amount: parseFloat(newExpense.amount),
+        category: newExpense.category,
+        expenseDate: newExpense.date
+      });
 
-    setNewExpense({ description: "", cost: "", date: "" });
-    setExpensesModalOpen(false);
-    toast({ title: "Sucesso", description: "Gasto adicionado com sucesso!" });
+      setNewExpense({ description: "", amount: "", category: "", date: "" });
+      setExpensesModalOpen(false);
+      toast({ title: "Sucesso", description: "Gasto adicionado com sucesso!" });
+      
+      // O useEffect vai recarregar automaticamente os dados
+    } catch (error) {
+      console.error("Erro ao adicionar gasto:", error);
+      toast({ 
+        title: "Erro", 
+        description: error instanceof Error ? error.message : "Erro ao adicionar gasto", 
+        variant: "destructive" 
+      });
+    }
   };
 
   // Client functions
@@ -547,26 +644,45 @@ const BrokerDetails = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="sale-description">Descrição</Label>
+                        <Label htmlFor="sale-property">Endereço do Imóvel *</Label>
                         <Input
-                          id="sale-description"
+                          id="sale-property"
                           placeholder="Ex: Apartamento Vila Olímpia"
-                          value={newSale.description}
-                          onChange={(e) => setNewSale({...newSale, description: e.target.value})}
+                          value={newSale.propertyAddress}
+                          onChange={(e) => setNewSale({...newSale, propertyAddress: e.target.value})}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="sale-value">Valor</Label>
+                        <Label htmlFor="sale-client">Nome do Cliente *</Label>
+                        <Input
+                          id="sale-client"
+                          placeholder="Ex: Maria Silva"
+                          value={newSale.clientName}
+                          onChange={(e) => setNewSale({...newSale, clientName: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sale-value">Valor da Venda *</Label>
                         <Input
                           id="sale-value"
                           type="number"
                           placeholder="450000"
-                          value={newSale.value}
-                          onChange={(e) => setNewSale({...newSale, value: e.target.value})}
+                          value={newSale.saleValue}
+                          onChange={(e) => setNewSale({...newSale, saleValue: e.target.value})}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="sale-date">Data</Label>
+                        <Label htmlFor="sale-commission">Comissão *</Label>
+                        <Input
+                          id="sale-commission"
+                          type="number"
+                          placeholder="13500"
+                          value={newSale.commission}
+                          onChange={(e) => setNewSale({...newSale, commission: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sale-date">Data *</Label>
                         <Input
                           id="sale-date"
                           type="date"
@@ -621,12 +737,31 @@ const BrokerDetails = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="listing-address">Endereço</Label>
+                        <Label htmlFor="listing-address">Endereço *</Label>
                         <Input
                           id="listing-address"
                           placeholder="Ex: Rua das Flores, 123"
                           value={newListing.address}
                           onChange={(e) => setNewListing({...newListing, address: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="listing-owner">Nome do Proprietário *</Label>
+                        <Input
+                          id="listing-owner"
+                          placeholder="Ex: João Silva"
+                          value={newListing.ownerName}
+                          onChange={(e) => setNewListing({...newListing, ownerName: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="listing-value">Valor do Imóvel *</Label>
+                        <Input
+                          id="listing-value"
+                          type="number"
+                          placeholder="Ex: 450000"
+                          value={newListing.propertyValue}
+                          onChange={(e) => setNewListing({...newListing, propertyValue: e.target.value})}
                         />
                       </div>
                       <div>
@@ -646,7 +781,7 @@ const BrokerDetails = () => {
                         </Select>
                       </div>
                       <div>
-                        <Label htmlFor="listing-date">Data</Label>
+                        <Label htmlFor="listing-date">Data *</Label>
                         <Input
                           id="listing-date"
                           type="date"
@@ -696,25 +831,34 @@ const BrokerDetails = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="meeting-title">Título</Label>
+                        <Label htmlFor="meeting-client">Nome do Cliente *</Label>
                         <Input
-                          id="meeting-title"
-                          placeholder="Ex: Planejamento Q1 2024"
-                          value={newMeeting.title}
-                          onChange={(e) => setNewMeeting({...newMeeting, title: e.target.value})}
+                          id="meeting-client"
+                          placeholder="Ex: João Santos"
+                          value={newMeeting.clientName}
+                          onChange={(e) => setNewMeeting({...newMeeting, clientName: e.target.value})}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="meeting-content">Conteúdo</Label>
+                        <Label htmlFor="meeting-type">Tipo de Reunião *</Label>
+                        <Input
+                          id="meeting-type"
+                          placeholder="Ex: Planejamento, Visita, Negociação"
+                          value={newMeeting.meetingType}
+                          onChange={(e) => setNewMeeting({...newMeeting, meetingType: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="meeting-notes">Observações</Label>
                         <Textarea
-                          id="meeting-content"
+                          id="meeting-notes"
                           placeholder="Definir metas de captação e vendas..."
-                          value={newMeeting.content}
-                          onChange={(e) => setNewMeeting({...newMeeting, content: e.target.value})}
+                          value={newMeeting.notes}
+                          onChange={(e) => setNewMeeting({...newMeeting, notes: e.target.value})}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="meeting-date">Data e Hora</Label>
+                        <Label htmlFor="meeting-date">Data e Hora *</Label>
                         <Input
                           id="meeting-date"
                           type="datetime-local"
@@ -762,7 +906,7 @@ const BrokerDetails = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="expense-description">Descrição</Label>
+                        <Label htmlFor="expense-description">Descrição *</Label>
                         <Input
                           id="expense-description"
                           placeholder="Ex: Gasolina"
@@ -771,17 +915,26 @@ const BrokerDetails = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="expense-cost">Valor</Label>
+                        <Label htmlFor="expense-category">Categoria *</Label>
                         <Input
-                          id="expense-cost"
-                          type="number"
-                          placeholder="150"
-                          value={newExpense.cost}
-                          onChange={(e) => setNewExpense({...newExpense, cost: e.target.value})}
+                          id="expense-category"
+                          placeholder="Ex: Transporte, Marketing, Escritório"
+                          value={newExpense.category}
+                          onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="expense-date">Data</Label>
+                        <Label htmlFor="expense-amount">Valor *</Label>
+                        <Input
+                          id="expense-amount"
+                          type="number"
+                          placeholder="150"
+                          value={newExpense.amount}
+                          onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="expense-date">Data *</Label>
                         <Input
                           id="expense-date"
                           type="date"
