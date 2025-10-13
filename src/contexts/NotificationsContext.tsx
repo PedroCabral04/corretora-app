@@ -207,6 +207,9 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     // Check tasks
     for (const task of tasks) {
       if (task.status === 'Concluída') continue;
+      
+      // Skip tasks with temporary IDs (optimistic updates not yet persisted)
+      if (task.id.startsWith('temp-')) continue;
 
       const dueDate = new Date(task.dueDate);
       const existingNotification = notifications.find(
