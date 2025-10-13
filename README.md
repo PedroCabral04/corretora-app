@@ -1,73 +1,79 @@
-# Welcome to your Lovable project
+# Broker Wingman Pro
 
-## Project info
+Sistema de gestão pessoal e profissional para corretores de imóveis.
 
-**URL**: https://lovable.dev/projects/d0be223f-3cca-4221-9108-6e2af8d3c75e
+## 🚀 Tecnologias
 
-## How can I edit this code?
+Este projeto foi desenvolvido com:
 
-There are several ways of editing your application.
+- **Vite** - Build tool e dev server
+- **React** - Library para UI
+- **TypeScript** - Tipagem estática
+- **Supabase** - Backend, autenticação e banco de dados
+- **shadcn/ui** - Componentes de UI
+- **Tailwind CSS** - Estilização
 
-**Use Lovable**
+## 📋 Pré-requisitos
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d0be223f-3cca-4221-9108-6e2af8d3c75e) and start prompting.
+- Node.js 18+ e npm instalados
+- Conta no Supabase (para configuração do backend)
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🔧 Instalação
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+1. Clone o repositório:
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
 git clone <YOUR_GIT_URL>
+cd broker-wingman-pro
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Instale as dependências:
+```sh
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+3. Configure as variáveis de ambiente:
+```sh
+# Crie um arquivo .env.local com suas credenciais do Supabase
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+4. Inicie o servidor de desenvolvimento:
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+O aplicativo estará disponível em `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📦 Scripts Disponíveis
 
-**Use GitHub Codespaces**
+- `npm run dev` - Inicia o servidor de desenvolvimento
+- `npm run build` - Build de produção
+- `npm run build:dev` - Build de desenvolvimento
+- `npm run lint` - Executa o linter
+- `npm run preview` - Preview do build de produção
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🗂️ Estrutura do Projeto
 
-## What technologies are used for this project?
+```
+src/
+├── components/     # Componentes React reutilizáveis
+├── contexts/       # Context providers (estado global)
+├── hooks/          # Custom hooks
+├── integrations/   # Integrações (Supabase)
+├── lib/            # Utilitários e helpers
+├── pages/          # Páginas da aplicação
+└── App.tsx         # Componente raiz
+```
 
-This project is built with:
+## 🔐 Autenticação
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+O sistema utiliza Supabase Auth com:
+- Login/Registro de usuários
+- Recuperação de senha por email
+- Sistema de roles (admin, manager, broker, viewer)
+- Row Level Security (RLS) no banco de dados
 
-## How can I deploy this project?
+## 📄 Licença
 
-Simply open [Lovable](https://lovable.dev/projects/d0be223f-3cca-4221-9108-6e2af8d3c75e) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Este projeto é privado e proprietário.

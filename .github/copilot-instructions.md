@@ -1,7 +1,7 @@
 # Broker Wingman Pro - AI Coding Agent Instructions
 
 ## Project Overview
-Real estate broker management platform built with React + TypeScript + Vite, using Supabase for backend/auth and shadcn/ui components. Originally generated via Lovable (GPT-powered app builder).
+Real estate broker management platform built with React + TypeScript + Vite, using Supabase for backend/auth and shadcn/ui components.
 
 ## Architecture Patterns
 
@@ -66,7 +66,7 @@ npm run lint         # ESLint check
 ## Project-Specific Conventions
 
 ### TypeScript Configuration
-- `noImplicitAny: false` - allows implicit any types (legacy from Lovable generation)
+- `noImplicitAny: false` - allows implicit any types (can be improved gradually)
 - `strictNullChecks: false` - nullable values not strictly enforced
 - Optional chaining (`?.`) used extensively for null safety despite loose config
 
