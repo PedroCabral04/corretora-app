@@ -37,7 +37,7 @@ const BrokerDetails = () => {
 
   const { getBrokerById } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
-  const { listings, createListing, getListingsByBrokerId } = useListings();
+  const { listings, createListing, getListingsByBrokerId, deleteListing } = useListings();
   const { sales, createSale, getSalesByBrokerId } = useSales();
   const { meetings, createMeeting, getMeetingsByBrokerId } = useMeetings();
   const { expenses, createExpense, getExpensesByBrokerId } = useExpenses();
@@ -77,9 +77,12 @@ const BrokerDetails = () => {
       ...prev,
       listings: brokerListings.map(l => ({
         id: l.id,
-        address: l.propertyAddress,
+        propertyType: l.propertyType,
+        quantity: l.quantity,
         status: l.status,
-        date: l.listingDate
+        date: l.listingDate,
+        // Campos antigos para exibição de compatibilidade
+        address: l.propertyAddress
       })),
       sales: brokerSales.map(s => ({
         id: s.id,
@@ -115,7 +118,7 @@ const BrokerDetails = () => {
 
   // Form states
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
-  const [newListing, setNewListing] = useState({ address: "", ownerName: "", propertyValue: "", status: "Ativa", date: "" });
+  const [newListing, setNewListing] = useState({ propertyType: "Apartamento", quantity: "1", status: "Ativa", date: "" });
   const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
   const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: "", date: "" });
   const [clientForm, setClientForm] = useState({
@@ -164,7 +167,7 @@ const BrokerDetails = () => {
   };
 
   const addListing = async () => {
-    if (!newListing.address || !newListing.ownerName || !newListing.propertyValue || !newListing.date) {
+    if (!newListing.propertyType || !newListing.quantity || !newListing.date) {
       toast({ title: "Erro", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
@@ -177,14 +180,13 @@ const BrokerDetails = () => {
     try {
       await createListing({
         brokerId: brokerId,
-        propertyAddress: newListing.address,
-        ownerName: newListing.ownerName,
-        propertyValue: parseFloat(newListing.propertyValue),
+        propertyType: newListing.propertyType as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
+        quantity: parseInt(newListing.quantity),
         listingDate: newListing.date,
         status: newListing.status as 'Ativa' | 'Vendida' | 'Cancelada'
       });
 
-      setNewListing({ address: "", ownerName: "", propertyValue: "", status: "Ativa", date: "" });
+      setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativa", date: "" });
       setListingsModalOpen(false);
       toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
       
@@ -196,6 +198,19 @@ const BrokerDetails = () => {
         description: error instanceof Error ? error.message : "Erro ao adicionar captação", 
         variant: "destructive" 
       });
+    }
+  };
+
+  const handleDeleteListing = async (id: string) => {
+    if (!id) return;
+    if (!confirm('Tem certeza que deseja excluir esta captação?')) return;
+    try {
+      await deleteListing(id);
+      // The listings context will update and useEffect will refresh brokerData
+      toast({ title: 'Captação excluída com sucesso!' });
+    } catch (error) {
+      console.error('Erro ao excluir captação:', error);
+      toast({ title: 'Erro ao excluir captação', variant: 'destructive' });
     }
   };
 
@@ -737,31 +752,32 @@ const BrokerDetails = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="listing-address">Endereço *</Label>
-                        <Input
-                          id="listing-address"
-                          placeholder="Ex: Rua das Flores, 123"
-                          value={newListing.address}
-                          onChange={(e) => setNewListing({...newListing, address: e.target.value})}
-                        />
+                        <Label htmlFor="listing-type">Tipo de Imóvel *</Label>
+                        <Select
+                          value={newListing.propertyType}
+                          onValueChange={(value) => setNewListing({...newListing, propertyType: value})}
+                        >
+                          <SelectTrigger id="listing-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Apartamento">Apartamento</SelectItem>
+                            <SelectItem value="Casa">Casa</SelectItem>
+                            <SelectItem value="Sobrado">Sobrado</SelectItem>
+                            <SelectItem value="Lote">Lote</SelectItem>
+                            <SelectItem value="Chácara">Chácara</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
-                        <Label htmlFor="listing-owner">Nome do Proprietário *</Label>
+                        <Label htmlFor="listing-quantity">Quantidade *</Label>
                         <Input
-                          id="listing-owner"
-                          placeholder="Ex: João Silva"
-                          value={newListing.ownerName}
-                          onChange={(e) => setNewListing({...newListing, ownerName: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="listing-value">Valor do Imóvel *</Label>
-                        <Input
-                          id="listing-value"
+                          id="listing-quantity"
                           type="number"
-                          placeholder="Ex: 450000"
-                          value={newListing.propertyValue}
-                          onChange={(e) => setNewListing({...newListing, propertyValue: e.target.value})}
+                          min="1"
+                          placeholder="Ex: 1"
+                          value={newListing.quantity}
+                          onChange={(e) => setNewListing({...newListing, quantity: e.target.value})}
                         />
                       </div>
                       <div>
@@ -770,7 +786,7 @@ const BrokerDetails = () => {
                           value={newListing.status}
                           onValueChange={(value) => setNewListing({...newListing, status: value})}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="listing-status">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -799,13 +815,20 @@ const BrokerDetails = () => {
                   {brokerData.listings.map(listing => (
                     <div key={listing.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <h4 className="font-semibold">{listing.address}</h4>
+                        <h4 className="font-semibold">
+                          {listing.propertyType && listing.quantity 
+                            ? `${listing.propertyType} (${listing.quantity})`
+                            : listing.address || 'Captação'}
+                        </h4>
                         <p className="text-sm text-muted-foreground">
                           Captada em {new Date(listing.date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <div>
+                      <div className="flex items-center gap-3">
                         {getStatusBadge(listing.status)}
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteListing(listing.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
