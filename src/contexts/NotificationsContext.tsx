@@ -26,7 +26,7 @@ interface NotificationsContextType {
   notifications: Notification[];
   unreadCount: number;
   isLoading: boolean;
-  createNotification: (data: Omit<Notification, 'id' | 'userId' | 'isRead' | 'createdAt' | 'updatedAt'>) => Promise<Notification>;
+  createNotification: (data: Omit<Notification, 'id' | 'userId' | 'isRead' | 'createdAt' | 'updatedAt'>) => Promise<Notification | null>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -97,7 +97,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     fetchNotifications();
   }, [user]);
 
-  const createNotification = async (data: Omit<Notification, 'id' | 'userId' | 'isRead' | 'createdAt' | 'updatedAt'>): Promise<Notification> => {
+  const createNotification = async (data: Omit<Notification, 'id' | 'userId' | 'isRead' | 'createdAt' | 'updatedAt'>): Promise<Notification | null> => {
     if (!user) throw new Error('User not authenticated');
 
     const { data: newNotification, error } = await supabase
@@ -113,7 +113,18 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Silently ignore duplicate notification errors (unique constraint violation)
+      if (error.code === '23505') {
+        console.log('Duplicate notification prevented by database constraint:', {
+          type: data.type,
+          relatedId: data.relatedId,
+          message: data.message
+        });
+        return null;
+      }
+      throw error;
+    }
 
     const notification: Notification = {
       id: newNotification.id,
@@ -203,6 +214,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     // Check tasks
     for (const task of tasks) {
@@ -212,8 +224,11 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
       if (task.id.startsWith('temp-')) continue;
 
       const dueDate = new Date(task.dueDate);
+      // Check for existing notification in the last 24 hours (including read ones)
       const existingNotification = notifications.find(
-        n => n.relatedId === task.id && n.type === 'task' && !n.isRead
+        n => n.relatedId === task.id && 
+             n.type === 'task' && 
+             new Date(n.createdAt) > twentyFourHoursAgo
       );
 
       if (existingNotification) continue;
@@ -260,8 +275,11 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
       if (goal.status === 'completed' || goal.status === 'cancelled') continue;
 
       const endDate = new Date(goal.endDate);
+      // Check for existing notification in the last 24 hours (including read ones)
       const existingNotification = notifications.find(
-        n => n.relatedId === goal.id && n.type === 'goal' && !n.isRead
+        n => n.relatedId === goal.id && 
+             n.type === 'goal' && 
+             new Date(n.createdAt) > twentyFourHoursAgo
       );
 
       if (existingNotification) continue;
@@ -302,8 +320,11 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     // Check events
     for (const event of events) {
       const eventDate = new Date(event.datetime);
+      // Check for existing notification in the last 24 hours (including read ones)
       const existingNotification = notifications.find(
-        n => n.relatedId === event.id && n.type === 'event' && !n.isRead
+        n => n.relatedId === event.id && 
+             n.type === 'event' && 
+             new Date(n.createdAt) > twentyFourHoursAgo
       );
 
       if (existingNotification) continue;
@@ -342,8 +363,11 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     // Check meetings
     for (const meeting of meetings) {
       const meetingDate = new Date(meeting.meetingDate);
+      // Check for existing notification in the last 24 hours (including read ones)
       const existingNotification = notifications.find(
-        n => n.relatedId === meeting.id && n.type === 'meeting' && !n.isRead
+        n => n.relatedId === meeting.id && 
+             n.type === 'meeting' && 
+             new Date(n.createdAt) > twentyFourHoursAgo
       );
 
       if (existingNotification) continue;

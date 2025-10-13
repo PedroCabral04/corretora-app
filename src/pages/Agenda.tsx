@@ -71,10 +71,16 @@ const Agenda = () => {
 
   const openEditEvent = (event: EventItem) => {
     setEditingEvent(event);
+    // Format datetime for datetime-local input (YYYY-MM-DDTHH:MM)
+    // Remove timezone offset and seconds if present
+    const datetimeValue = event.datetime.includes('T') 
+      ? event.datetime.slice(0, 16) // Take only YYYY-MM-DDTHH:MM
+      : event.datetime;
+    
     setForm({
       title: event.title,
       description: event.description || "",
-      datetime: event.datetime,
+      datetime: datetimeValue,
       priority: event.priority || "Média",
       durationMinutes: event.durationMinutes || 60
     });
@@ -104,11 +110,15 @@ const Agenda = () => {
     }
     
     try {
+      // Convert local datetime-local input to ISO string without timezone conversion
+      // The datetime-local input returns "YYYY-MM-DDTHH:MM" which we need to append ":00" for seconds
+      const localDatetime = form.datetime.length === 16 ? `${form.datetime}:00` : form.datetime;
+      
       if (editingEvent) {
         await updateEvent(editingEvent.id, {
           title: form.title,
           description: form.description,
-          datetime: form.datetime,
+          datetime: localDatetime,
           priority: form.priority,
           durationMinutes: form.durationMinutes
         });
@@ -120,7 +130,7 @@ const Agenda = () => {
         await createEvent({
           title: form.title,
           description: form.description,
-          datetime: form.datetime,
+          datetime: localDatetime,
           priority: form.priority,
           durationMinutes: form.durationMinutes
         });
