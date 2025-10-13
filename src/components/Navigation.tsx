@@ -72,7 +72,8 @@ export const Navigation = () => {
   };
 
   const navItems = [
-    { path: "/", label: "Corretores", icon: Users },
+    { path: "/dashboard", label: "Dashboard", icon: Home },
+    { path: "/brokers", label: "Corretores", icon: Users },
     { path: "/tasks", label: "Tarefas", icon: CheckSquare },
     { path: "/agenda", label: "Agenda", icon: CalendarIcon },
     { path: "/goals", label: "Metas", icon: Target },
@@ -86,7 +87,7 @@ export const Navigation = () => {
           {/* Logo and Brand */}
           <div className="flex items-center space-x-8">
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/dashboard")}
               className="flex items-center space-x-2 group transition-all duration-200 hover:scale-105"
             >
               <div className="relative">

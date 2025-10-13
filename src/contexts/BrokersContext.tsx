@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from './AuthContext';
 
@@ -40,7 +40,7 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchBrokers = async () => {
+  const fetchBrokers = useCallback(async () => {
     if (!user) {
       setBrokers([]);
       setIsLoading(false);
@@ -56,17 +56,48 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
 
       if (error) throw error;
 
-      const mappedBrokers: Broker[] = (data || []).map(broker => ({
-        id: broker.id,
-        name: broker.name,
-        email: broker.email || '',
-        phone: broker.phone || '',
-        creci: broker.creci || '',
-        totalSales: broker.total_sales,
-        totalListings: broker.total_listings,
-        monthlyExpenses: Number(broker.monthly_expenses),
-        totalValue: Number(broker.total_value)
-      }));
+      // Buscar captações e vendas para calcular os totais dinamicamente
+      const { data: listingsData } = await supabase
+        .from('listings')
+        .select('broker_id, status')
+        .eq('user_id', user.id);
+
+      const { data: salesData } = await supabase
+        .from('sales')
+        .select('broker_id, sale_value')
+        .eq('user_id', user.id);
+
+      // Calcular totais por corretor
+      const listingsByBroker = (listingsData || []).reduce((acc, listing) => {
+        if (!acc[listing.broker_id]) acc[listing.broker_id] = { active: 0, total: 0 };
+        acc[listing.broker_id].total += 1;
+        if (listing.status === 'Ativa') acc[listing.broker_id].active += 1;
+        return acc;
+      }, {} as Record<string, { active: number; total: number }>);
+
+      const salesByBroker = (salesData || []).reduce((acc, sale) => {
+        if (!acc[sale.broker_id]) acc[sale.broker_id] = { count: 0, value: 0 };
+        acc[sale.broker_id].count += 1;
+        acc[sale.broker_id].value += Number(sale.sale_value || 0);
+        return acc;
+      }, {} as Record<string, { count: number; value: number }>);
+
+      const mappedBrokers: Broker[] = (data || []).map(broker => {
+        const listings = listingsByBroker[broker.id] || { active: 0, total: 0 };
+        const sales = salesByBroker[broker.id] || { count: 0, value: 0 };
+
+        return {
+          id: broker.id,
+          name: broker.name,
+          email: broker.email || '',
+          phone: broker.phone || '',
+          creci: broker.creci || '',
+          totalSales: sales.count,
+          totalListings: listings.active, // Apenas captações ativas
+          monthlyExpenses: Number(broker.monthly_expenses),
+          totalValue: sales.value
+        };
+      });
 
       setBrokers(mappedBrokers);
     } catch (error) {
@@ -75,11 +106,11 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchBrokers();
-  }, [user]);
+  }, [fetchBrokers]);
 
   const createBroker = async (data: Partial<Broker>) => {
     if (!user) throw new Error('Usuário não autenticado');

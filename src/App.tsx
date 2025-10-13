@@ -17,6 +17,8 @@ import { GoalsProvider } from "@/contexts/GoalsContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import Dashboard from "./pages/Dashboard";
+import Brokers from "./pages/Brokers";
 import BrokerDetails from "./pages/BrokerDetails";
 import Tasks from "./pages/Tasks";
 import Agenda from "./pages/Agenda";
@@ -56,6 +58,16 @@ const App = () => (
                             <Route path="/" element={
                               <ProtectedRoute>
                                 <Index />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/dashboard" element={
+                              <ProtectedRoute>
+                                <Dashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/brokers" element={
+                              <ProtectedRoute>
+                                <Brokers />
                               </ProtectedRoute>
                             } />
                             <Route path="/broker/:brokerId" element={
