@@ -5,6 +5,9 @@ export const maskPhone = (value: string): string => {
   // Remove tudo que não é dígito
   const numbers = value.replace(/\D/g, '');
   
+  // Retorna vazio se não houver números
+  if (!numbers) return '';
+  
   // Aplica a máscara conforme o tamanho
   if (numbers.length <= 2) {
     return `(${numbers}`;
@@ -33,10 +36,13 @@ export const maskCurrency = (value: string): string => {
   const amount = Number(numbers) / 100;
   
   // Formata como moeda
-  return amount.toLocaleString('pt-BR', {
+  const formatted = amount.toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   });
+  
+  // Replace non-breaking space (U+00A0) with regular space (U+0020)
+  return formatted.replace(/\u00A0/g, ' ');
 };
 
 // Remove máscara da moeda e retorna número

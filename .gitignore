@@ -27,6 +27,9 @@ dist-ssr
 package-lock.json
 package.json
 
-*.md
 supabase/.temp/*
 .github/
+
+# Test coverage
+coverage
+.vitest
