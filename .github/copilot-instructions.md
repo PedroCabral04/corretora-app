@@ -1,4 +1,4 @@
-# Broker Wingman Pro - AI Coding Agent Instructions
+# Corretora App - AI Coding Agent Instructions
 
 ## Project Overview
 Real estate broker management platform built with React + TypeScript + Vite, using Supabase for backend/auth and shadcn/ui components.
