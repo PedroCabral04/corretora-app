@@ -6,11 +6,16 @@ import "@testing-library/jest-dom/vitest";
 import Brokers from "./Brokers";
 
 const mockUseBrokers = vi.fn();
+const mockUseAuth = vi.fn();
 const mockToast = vi.fn();
 const mockNavigate = vi.fn();
 
 vi.mock("@/contexts/BrokersContext", () => ({
   useBrokers: () => mockUseBrokers(),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => mockUseAuth(),
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -144,6 +149,20 @@ vi.mock("@/components/ui/skeleton", () => ({
 describe("Brokers page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Mock useAuth to return a user object
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: "user-1",
+        email: "test@example.com",
+        name: "Test User",
+        role: "manager",
+      },
+      login: vi.fn(),
+      logout: vi.fn(),
+      register: vi.fn(),
+      isLoading: false,
+    });
   });
 
   it("renders loading skeletons when data is loading", () => {
