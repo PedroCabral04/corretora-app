@@ -6,14 +6,13 @@
 -- Inserir role 'manager' para todos os usuários que existem na tabela profiles
 -- mas não têm registro na tabela user_roles
 INSERT INTO public.user_roles (user_id, role)
-SELECT p.user_id, 'manager'::text
+SELECT p.user_id, 'manager'::app_role
 FROM public.profiles p
 WHERE NOT EXISTS (
     SELECT 1 
     FROM public.user_roles ur 
     WHERE ur.user_id = p.user_id
-)
-ON CONFLICT (user_id) DO NOTHING;
+);
 
 -- Verificar quantos usuários foram atualizados
 DO $$
