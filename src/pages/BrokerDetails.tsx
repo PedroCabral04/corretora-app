@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MetricCard } from "@/components/MetricCard";
+import { ListingColumn } from "@/components/ListingColumn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
 import { useClients } from '@/contexts/ClientsContext';
 import { useListings } from '@/contexts/ListingsContext';
@@ -34,15 +36,28 @@ const BrokerDetails = () => {
   const { brokerId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { getBrokerById } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
-  const { listings, createListing, getListingsByBrokerId, deleteListing } = useListings();
-  const { sales, createSale, getSalesByBrokerId } = useSales();
-  const { meetings, createMeeting, getMeetingsByBrokerId } = useMeetings();
-  const { expenses, createExpense, getExpensesByBrokerId } = useExpenses();
+  const { 
+    listings, 
+    createListing, 
+    updateListing, 
+    deleteListing, 
+    getListingsByBrokerId,
+    getAggregateQuantity,
+    updateAggregateQuantity,
+    getDetailedListingsByType
+  } = useListings();
+  const { sales, createSale, updateSale, deleteSale, getSalesByBrokerId } = useSales();
+  const { meetings, createMeeting, updateMeeting, completeMeeting, deleteMeeting, getMeetingsByBrokerId } = useMeetings();
+  const { expenses, createExpense, updateExpense, deleteExpense, getExpensesByBrokerId } = useExpenses();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
+
+  // Verificar se o usuário logado é o próprio corretor visualizando sua página
+  const isOwnProfile = user?.role === 'broker' && brokerFromStore?.email?.toLowerCase() === user?.email.toLowerCase();
 
   const [brokerData, setBrokerData] = useState(() => ({
     id: brokerId,
@@ -94,7 +109,10 @@ const BrokerDetails = () => {
         id: m.id,
         title: m.meetingType,
         content: m.notes || '',
-        date: m.meetingDate
+        date: m.meetingDate,
+        status: m.status,
+        summary: m.summary,
+        clientName: m.clientName
       })),
       expenses: brokerExpenses.map(e => ({
         id: e.id,
@@ -103,7 +121,7 @@ const BrokerDetails = () => {
         date: e.expenseDate
       })),
       totalSales: brokerSales.length,
-      totalListings: brokerListings.filter(l => l.status === 'Ativa').length,
+      totalListings: brokerListings.filter(l => l.status === 'Ativo').length,
       totalValue: brokerSales.reduce((sum, s) => sum + s.saleValue, 0),
       monthlyExpenses: brokerExpenses.reduce((sum, e) => sum + e.amount, 0)
     }));
@@ -113,13 +131,24 @@ const BrokerDetails = () => {
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [listingsModalOpen, setListingsModalOpen] = useState(false);
   const [meetingsModalOpen, setMeetingsModalOpen] = useState(false);
+  const [completeMeetingModalOpen, setCompleteMeetingModalOpen] = useState(false);
   const [expensesModalOpen, setExpensesModalOpen] = useState(false);
   const [clientsModalOpen, setClientsModalOpen] = useState(false);
+  const [selectedPropertyType, setSelectedPropertyType] = useState<'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara' | null>(null);
 
   // Form states
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
-  const [newListing, setNewListing] = useState({ propertyType: "Apartamento", quantity: "1", status: "Ativa", date: "" });
+  const [newListing, setNewListing] = useState({ 
+    propertyType: "Apartamento", 
+    quantity: "1", 
+    status: "Ativo", 
+    date: new Date().toISOString().split('T')[0], 
+    propertyAddress: "", 
+    propertyValue: "" 
+  });
   const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
+  const [meetingSummary, setMeetingSummary] = useState("");
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: "", date: "" });
   const [clientForm, setClientForm] = useState({
     client_name: "",
@@ -127,8 +156,13 @@ const BrokerDetails = () => {
     negotiation_status: "",
     is_active: true,
     status_color: "green",
+    last_updates: "",
   });
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
+  const [editingListingId, setEditingListingId] = useState<string | null>(null);
+  const [editingMeetingId, setEditingMeetingId] = useState<string | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   const addSale = async () => {
     if (!newSale.propertyAddress || !newSale.clientName || !newSale.saleValue || !newSale.commission || !newSale.date) {
@@ -142,27 +176,65 @@ const BrokerDetails = () => {
     }
 
     try {
-      await createSale({
-        brokerId: brokerId,
-        propertyAddress: newSale.propertyAddress,
-        clientName: newSale.clientName,
-        saleValue: parseFloat(newSale.saleValue),
-        commission: parseFloat(newSale.commission),
-        saleDate: newSale.date
-      });
+      if (editingSaleId) {
+        await updateSale(editingSaleId, {
+          propertyAddress: newSale.propertyAddress,
+          clientName: newSale.clientName,
+          saleValue: parseFloat(newSale.saleValue),
+          commission: parseFloat(newSale.commission),
+          saleDate: newSale.date
+        });
+        toast({ title: "Sucesso", description: "Venda atualizada com sucesso!" });
+      } else {
+        await createSale({
+          brokerId: brokerId,
+          propertyAddress: newSale.propertyAddress,
+          clientName: newSale.clientName,
+          saleValue: parseFloat(newSale.saleValue),
+          commission: parseFloat(newSale.commission),
+          saleDate: newSale.date
+        });
+        toast({ title: "Sucesso", description: "Venda adicionada com sucesso!" });
+      }
 
       setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
+      setEditingSaleId(null);
       setSalesModalOpen(false);
-      toast({ title: "Sucesso", description: "Venda adicionada com sucesso!" });
       
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
-      console.error("Erro ao adicionar venda:", error);
+      console.error("Erro ao salvar venda:", error);
       toast({ 
         title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao adicionar venda", 
+        description: error instanceof Error ? error.message : "Erro ao salvar venda", 
         variant: "destructive" 
       });
+    }
+  };
+
+  const handleEditSale = (sale: any) => {
+    setNewSale({
+      propertyAddress: sale.description,
+      clientName: "",
+      saleValue: sale.value.toString(),
+      commission: "",
+      date: sale.date
+    });
+    setEditingSaleId(sale.id);
+    setSalesModalOpen(true);
+  };
+
+  const handleDeleteSale = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta venda?")) {
+      try {
+        await deleteSale(id);
+        toast({ title: "Sucesso", description: "Venda excluída com sucesso!" });
+      } catch (error) {
+        toast({
+          title: "Erro ao excluir venda",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -178,39 +250,75 @@ const BrokerDetails = () => {
     }
 
     try {
-      await createListing({
-        brokerId: brokerId,
-        propertyType: newListing.propertyType as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
-        quantity: parseInt(newListing.quantity),
-        listingDate: newListing.date,
-        status: newListing.status as 'Ativa' | 'Vendida' | 'Cancelada'
-      });
+      if (editingListingId) {
+        await updateListing(editingListingId, {
+          propertyType: newListing.propertyType as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
+          quantity: parseInt(newListing.quantity),
+          listingDate: newListing.date,
+          status: newListing.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação',
+          propertyAddress: newListing.propertyAddress || undefined,
+          propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
+        });
+        toast({ title: "Sucesso", description: "Captação atualizada com sucesso!" });
+      } else {
+        await createListing({
+          brokerId: brokerId,
+          propertyType: newListing.propertyType as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
+          quantity: parseInt(newListing.quantity),
+          listingDate: newListing.date,
+          status: newListing.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação',
+          propertyAddress: newListing.propertyAddress || undefined,
+          propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
+        });
+        toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
+      }
 
-      setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativa", date: "" });
+      setNewListing({ 
+        propertyType: "Apartamento", 
+        quantity: "1", 
+        status: "Ativo", 
+        date: new Date().toISOString().split('T')[0], 
+        propertyAddress: "", 
+        propertyValue: "" 
+      });
+      setEditingListingId(null);
       setListingsModalOpen(false);
-      toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
       
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
-      console.error("Erro ao adicionar captação:", error);
+      console.error("Erro ao salvar captação:", error);
       toast({ 
         title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao adicionar captação", 
+        description: error instanceof Error ? error.message : "Erro ao salvar captação", 
         variant: "destructive" 
       });
     }
   };
 
+  const handleEditListing = (listing: any) => {
+    setNewListing({
+      propertyType: listing.propertyType || "",
+      quantity: listing.quantity?.toString() || "1",
+      status: listing.status,
+      date: listing.listingDate || listing.date,
+      propertyAddress: listing.propertyAddress || "",
+      propertyValue: listing.propertyValue?.toString() || ""
+    });
+    setEditingListingId(listing.id);
+    setListingsModalOpen(true);
+  };
+
   const handleDeleteListing = async (id: string) => {
-    if (!id) return;
-    if (!confirm('Tem certeza que deseja excluir esta captação?')) return;
-    try {
-      await deleteListing(id);
-      // The listings context will update and useEffect will refresh brokerData
-      toast({ title: 'Captação excluída com sucesso!' });
-    } catch (error) {
-      console.error('Erro ao excluir captação:', error);
-      toast({ title: 'Erro ao excluir captação', variant: 'destructive' });
+    if (confirm("Tem certeza que deseja excluir esta captação?")) {
+      try {
+        await deleteListing(id);
+        toast({ title: "Sucesso", description: "Captação excluída com sucesso!" });
+      } catch (error) {
+        toast({
+          title: "Erro ao excluir captação",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -226,25 +334,94 @@ const BrokerDetails = () => {
     }
 
     try {
-      await createMeeting({
-        brokerId: brokerId,
-        clientName: newMeeting.clientName,
-        meetingType: newMeeting.meetingType,
-        meetingDate: newMeeting.date,
-        notes: newMeeting.notes || undefined
-      });
+      if (editingMeetingId) {
+        await updateMeeting(editingMeetingId, {
+          clientName: newMeeting.clientName,
+          meetingType: newMeeting.meetingType,
+          meetingDate: newMeeting.date,
+          notes: newMeeting.notes || undefined
+        });
+        toast({ title: "Sucesso", description: "Reunião atualizada com sucesso!" });
+      } else {
+        await createMeeting({
+          brokerId: brokerId,
+          clientName: newMeeting.clientName,
+          meetingType: newMeeting.meetingType,
+          meetingDate: newMeeting.date,
+          notes: newMeeting.notes || undefined
+        });
+        toast({ title: "Sucesso", description: "Reunião adicionada com sucesso!" });
+      }
 
       setNewMeeting({ clientName: "", meetingType: "", notes: "", date: "" });
+      setEditingMeetingId(null);
       setMeetingsModalOpen(false);
-      toast({ title: "Sucesso", description: "Reunião adicionada com sucesso!" });
       
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
-      console.error("Erro ao adicionar reunião:", error);
+      console.error("Erro ao salvar reunião:", error);
       toast({ 
         title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao adicionar reunião", 
+        description: error instanceof Error ? error.message : "Erro ao salvar reunião", 
         variant: "destructive" 
+      });
+    }
+  };
+
+  const handleEditMeeting = (meeting: any) => {
+    setNewMeeting({
+      clientName: "",
+      meetingType: meeting.title,
+      notes: meeting.content,
+      date: meeting.date
+    });
+    setEditingMeetingId(meeting.id);
+    setMeetingsModalOpen(true);
+  };
+
+  const handleDeleteMeeting = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta reunião?")) {
+      try {
+        await deleteMeeting(id);
+        toast({ title: "Sucesso", description: "Reunião excluída com sucesso!" });
+      } catch (error) {
+        toast({
+          title: "Erro ao excluir reunião",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleOpenCompleteMeetingModal = (meetingId: string) => {
+    setSelectedMeetingId(meetingId);
+    setMeetingSummary("");
+    setCompleteMeetingModalOpen(true);
+  };
+
+  const handleCompleteMeeting = async () => {
+    if (!meetingSummary.trim()) {
+      toast({ title: "Erro", description: "Por favor, descreva o que foi discutido na reunião", variant: "destructive" });
+      return;
+    }
+
+    if (!selectedMeetingId) {
+      toast({ title: "Erro", description: "Reunião não encontrada", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await completeMeeting(selectedMeetingId, meetingSummary);
+      toast({ title: "Sucesso", description: "Reunião finalizada com sucesso!" });
+      setCompleteMeetingModalOpen(false);
+      setMeetingSummary("");
+      setSelectedMeetingId(null);
+    } catch (error) {
+      console.error("Erro ao finalizar reunião:", error);
+      toast({
+        title: "Erro ao finalizar reunião",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
       });
     }
   };
@@ -261,30 +438,66 @@ const BrokerDetails = () => {
     }
 
     try {
-      await createExpense({
-        brokerId: brokerId,
-        description: newExpense.description,
-        amount: parseFloat(newExpense.amount),
-        category: newExpense.category,
-        expenseDate: newExpense.date
-      });
+      if (editingExpenseId) {
+        await updateExpense(editingExpenseId, {
+          description: newExpense.description,
+          amount: parseFloat(newExpense.amount),
+          category: newExpense.category,
+          expenseDate: newExpense.date
+        });
+        toast({ title: "Sucesso", description: "Gasto atualizado com sucesso!" });
+      } else {
+        await createExpense({
+          brokerId: brokerId,
+          description: newExpense.description,
+          amount: parseFloat(newExpense.amount),
+          category: newExpense.category,
+          expenseDate: newExpense.date
+        });
+        toast({ title: "Sucesso", description: "Gasto adicionado com sucesso!" });
+      }
 
       setNewExpense({ description: "", amount: "", category: "", date: "" });
+      setEditingExpenseId(null);
       setExpensesModalOpen(false);
-      toast({ title: "Sucesso", description: "Gasto adicionado com sucesso!" });
       
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
-      console.error("Erro ao adicionar gasto:", error);
+      console.error("Erro ao salvar gasto:", error);
       toast({ 
         title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao adicionar gasto", 
+        description: error instanceof Error ? error.message : "Erro ao salvar gasto", 
         variant: "destructive" 
       });
     }
   };
 
-  // Client functions
+  const handleEditExpense = (expense: any) => {
+    setNewExpense({
+      description: expense.description,
+      amount: expense.cost.toString(),
+      category: "",
+      date: expense.date
+    });
+    setEditingExpenseId(expense.id);
+    setExpensesModalOpen(true);
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir este gasto?")) {
+      try {
+        await deleteExpense(id);
+        toast({ title: "Sucesso", description: "Gasto excluído com sucesso!" });
+      } catch (error) {
+        toast({
+          title: "Erro ao excluir gasto",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Reset functions
   const resetClientForm = () => {
     setClientForm({
       client_name: "",
@@ -292,8 +505,36 @@ const BrokerDetails = () => {
       negotiation_status: "",
       is_active: true,
       status_color: "green",
+      last_updates: "",
     });
     setEditingClientId(null);
+  };
+
+  const resetSaleForm = () => {
+    setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
+    setEditingSaleId(null);
+  };
+
+  const resetListingForm = () => {
+    setNewListing({ 
+      propertyType: "Apartamento", 
+      quantity: "1", 
+      status: "Ativo", 
+      date: new Date().toISOString().split('T')[0], 
+      propertyAddress: "", 
+      propertyValue: "" 
+    });
+    setEditingListingId(null);
+  };
+
+  const resetMeetingForm = () => {
+    setNewMeeting({ clientName: "", meetingType: "", notes: "", date: "" });
+    setEditingMeetingId(null);
+  };
+
+  const resetExpenseForm = () => {
+    setNewExpense({ description: "", amount: "", category: "", date: "" });
+    setEditingExpenseId(null);
   };
 
   const handleClientSubmit = async (e: React.FormEvent) => {
@@ -325,6 +566,7 @@ const BrokerDetails = () => {
       negotiation_status: client.negotiation_status,
       is_active: client.is_active,
       status_color: client.status_color || "green",
+      last_updates: client.last_updates || "",
     });
     setEditingClientId(client.id);
     setClientsModalOpen(true);
@@ -359,28 +601,34 @@ const BrokerDetails = () => {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumbs */}
-        <Breadcrumbs 
-          items={[
-            { label: "Corretores", href: "/" },
-            { label: brokerData.name || "Detalhes" }
-          ]} 
-          className="mb-6"
-        />
+        {!isOwnProfile && (
+          <Breadcrumbs 
+            items={[
+              { label: "Corretores", href: "/brokers" },
+              { label: brokerData.name || "Detalhes" }
+            ]} 
+            className="mb-6"
+          />
+        )}
         
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/")}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Voltar</span>
-            </Button>
+            {!isOwnProfile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/brokers")}
+                className="flex items-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Voltar</span>
+              </Button>
+            )}
             <div>
-              <h1 className="text-3xl font-bold text-foreground">{brokerData.name}</h1>
+              <h1 className="text-3xl font-bold text-foreground">
+                {isOwnProfile ? 'Meu Perfil' : brokerData.name}
+              </h1>
               <p className="text-muted-foreground">{brokerData.email} • {brokerData.phone} • CRECI {brokerData.creci}</p>
             </div>
           </div>
@@ -561,6 +809,20 @@ const BrokerDetails = () => {
                         </Select>
                       </div>
 
+                      <div>
+                        <Label htmlFor="last_updates">Últimas Atualizações</Label>
+                        <Textarea
+                          id="last_updates"
+                          value={clientForm.last_updates}
+                          onChange={(e) =>
+                            setClientForm({ ...clientForm, last_updates: e.target.value })
+                          }
+                          placeholder="Anote aqui as últimas atualizações sobre o cliente..."
+                          rows={4}
+                          className="resize-none"
+                        />
+                      </div>
+
                       <Button type="submit" className="w-full">
                         {editingClientId ? "Atualizar" : "Adicionar"}
                       </Button>
@@ -569,26 +831,27 @@ const BrokerDetails = () => {
                 </Dialog>
               </CardHeader>
               <CardContent>
-                <Table>
+                <Table containerClassName="max-h-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Status</TableHead>
                       <TableHead>Cliente</TableHead>
                       <TableHead>Interesse</TableHead>
                       <TableHead>Negociação</TableHead>
+                      <TableHead>Últimas Atualizações</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {clientsLoading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center">
+                        <TableCell colSpan={6} className="text-center">
                           Carregando...
                         </TableCell>
                       </TableRow>
                     ) : brokerClients.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center">
+                        <TableCell colSpan={6} className="text-center">
                           Nenhum cliente cadastrado para este corretor
                         </TableCell>
                       </TableRow>
@@ -615,6 +878,11 @@ const BrokerDetails = () => {
                           </TableCell>
                           <TableCell>{client.interest}</TableCell>
                           <TableCell>{client.negotiation_status}</TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="truncate" title={client.last_updates || ''}>
+                              {client.last_updates || '-'}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button
@@ -646,7 +914,7 @@ const BrokerDetails = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Vendas Realizadas</CardTitle>
-                <Dialog open={salesModalOpen} onOpenChange={setSalesModalOpen}>
+                <Dialog open={salesModalOpen} onOpenChange={(open) => { setSalesModalOpen(open); if (!open) resetSaleForm(); }}>
                   <DialogTrigger asChild>
                     <Button size="sm">
                       <Plus className="h-4 w-4 mr-2" />
@@ -655,7 +923,7 @@ const BrokerDetails = () => {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Adicionar Nova Venda</DialogTitle>
+                      <DialogTitle>{editingSaleId ? "Editar Venda" : "Adicionar Nova Venda"}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
@@ -705,7 +973,7 @@ const BrokerDetails = () => {
                           onChange={(e) => setNewSale({...newSale, date: e.target.value})}
                         />
                       </div>
-                      <Button onClick={addSale} className="w-full">Adicionar Venda</Button>
+                      <Button onClick={addSale} className="w-full">{editingSaleId ? "Atualizar" : "Adicionar"}</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -720,113 +988,17 @@ const BrokerDetails = () => {
                           {new Date(sale.date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="flex items-center gap-3">
                         <p className="font-semibold text-success">
                           {new Intl.NumberFormat('pt-BR', {
                             style: 'currency',
                             currency: 'BRL'
                           }).format(sale.value)}
                         </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="listings">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Captações</CardTitle>
-                <Dialog open={listingsModalOpen} onOpenChange={setListingsModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nova Captação
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Adicionar Nova Captação</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="listing-type">Tipo de Imóvel *</Label>
-                        <Select
-                          value={newListing.propertyType}
-                          onValueChange={(value) => setNewListing({...newListing, propertyType: value})}
-                        >
-                          <SelectTrigger id="listing-type">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Apartamento">Apartamento</SelectItem>
-                            <SelectItem value="Casa">Casa</SelectItem>
-                            <SelectItem value="Sobrado">Sobrado</SelectItem>
-                            <SelectItem value="Lote">Lote</SelectItem>
-                            <SelectItem value="Chácara">Chácara</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="listing-quantity">Quantidade *</Label>
-                        <Input
-                          id="listing-quantity"
-                          type="number"
-                          min="1"
-                          placeholder="Ex: 1"
-                          value={newListing.quantity}
-                          onChange={(e) => setNewListing({...newListing, quantity: e.target.value})}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="listing-status">Status</Label>
-                        <Select
-                          value={newListing.status}
-                          onValueChange={(value) => setNewListing({...newListing, status: value})}
-                        >
-                          <SelectTrigger id="listing-status">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Ativa">Ativa</SelectItem>
-                            <SelectItem value="Vendida">Vendida</SelectItem>
-                            <SelectItem value="Cancelada">Cancelada</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="listing-date">Data *</Label>
-                        <Input
-                          id="listing-date"
-                          type="date"
-                          value={newListing.date}
-                          onChange={(e) => setNewListing({...newListing, date: e.target.value})}
-                        />
-                      </div>
-                      <Button onClick={addListing} className="w-full">Adicionar Captação</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {brokerData.listings.map(listing => (
-                    <div key={listing.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h4 className="font-semibold">
-                          {listing.propertyType && listing.quantity 
-                            ? `${listing.propertyType} (${listing.quantity})`
-                            : listing.address || 'Captação'}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          Captada em {new Date(listing.date).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {getStatusBadge(listing.status)}
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteListing(listing.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleEditSale(sale)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSale(sale.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -837,11 +1009,156 @@ const BrokerDetails = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="listings">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Captações por Tipo de Imóvel</h3>
+              
+              {/* Grid de Colunas Responsivo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                {(['Apartamento', 'Casa', 'Sobrado', 'Lote', 'Chácara'] as const).map((propertyType) => (
+                  <ListingColumn
+                    key={propertyType}
+                    propertyType={propertyType}
+                    brokerId={brokerId!}
+                    listings={getDetailedListingsByType(brokerId!, propertyType)}
+                    aggregateQuantity={getAggregateQuantity(brokerId!, propertyType)}
+                    onQuantityChange={async (quantity) => {
+                      try {
+                        await updateAggregateQuantity(brokerId!, propertyType, quantity);
+                        toast({ 
+                          title: "Sucesso", 
+                          description: `Quantidade de ${propertyType} atualizada para ${quantity}` 
+                        });
+                      } catch (error) {
+                        toast({ 
+                          title: "Erro", 
+                          description: "Erro ao atualizar quantidade", 
+                          variant: "destructive" 
+                        });
+                      }
+                    }}
+                    onAddDetailed={() => {
+                      setSelectedPropertyType(propertyType);
+                      setNewListing({ 
+                        propertyType, 
+                        quantity: "1", 
+                        status: "Ativo", 
+                        date: new Date().toISOString().split('T')[0],
+                        propertyAddress: "",
+                        propertyValue: ""
+                      });
+                      setEditingListingId(null);
+                      setListingsModalOpen(true);
+                    }}
+                    onEdit={(listing) => handleEditListing(listing)}
+                    onDelete={(id) => handleDeleteListing(id)}
+                  />
+                ))}
+              </div>
+
+              {/* Dialog para Adicionar/Editar Captação Detalhada */}
+              <Dialog open={listingsModalOpen} onOpenChange={(open) => { 
+                setListingsModalOpen(open); 
+                if (!open) {
+                  resetListingForm();
+                  setSelectedPropertyType(null);
+                }
+              }}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingListingId ? "Editar Captação" : "Adicionar Nova Captação"}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="listing-type">Tipo de Imóvel *</Label>
+                      <Select
+                        value={newListing.propertyType}
+                        onValueChange={(value) => setNewListing({...newListing, propertyType: value})}
+                        disabled={selectedPropertyType !== null && !editingListingId}
+                      >
+                        <SelectTrigger id="listing-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Apartamento">Apartamento</SelectItem>
+                          <SelectItem value="Casa">Casa</SelectItem>
+                          <SelectItem value="Sobrado">Sobrado</SelectItem>
+                          <SelectItem value="Lote">Lote</SelectItem>
+                          <SelectItem value="Chácara">Chácara</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="listing-quantity">Quantidade *</Label>
+                      <Input
+                        id="listing-quantity"
+                        type="number"
+                        min="1"
+                        placeholder="Ex: 1"
+                        value={newListing.quantity}
+                        onChange={(e) => setNewListing({...newListing, quantity: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="listing-address">Endereço do Imóvel</Label>
+                      <Input
+                        id="listing-address"
+                        type="text"
+                        placeholder="Ex: Rua das Flores, 123 - Centro"
+                        value={newListing.propertyAddress}
+                        onChange={(e) => setNewListing({...newListing, propertyAddress: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="listing-value">Valor (R$)</Label>
+                      <Input
+                        id="listing-value"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Ex: 450000"
+                        value={newListing.propertyValue}
+                        onChange={(e) => setNewListing({...newListing, propertyValue: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="listing-status">Status</Label>
+                      <Select
+                        value={newListing.status}
+                        onValueChange={(value) => setNewListing({...newListing, status: value})}
+                      >
+                        <SelectTrigger id="listing-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Ativo">Ativo</SelectItem>
+                          <SelectItem value="Desativado">Desativado</SelectItem>
+                          <SelectItem value="Vendido">Vendido</SelectItem>
+                          <SelectItem value="Moderação">Moderação</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="listing-date">Data *</Label>
+                      <Input
+                        id="listing-date"
+                        type="date"
+                        value={newListing.date}
+                        onChange={(e) => setNewListing({...newListing, date: e.target.value})}
+                      />
+                    </div>
+                    <Button onClick={addListing} className="w-full">{editingListingId ? "Atualizar" : "Adicionar"}</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </TabsContent>
+
           <TabsContent value="meetings">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Reuniões e Planos de Ação</CardTitle>
-                <Dialog open={meetingsModalOpen} onOpenChange={setMeetingsModalOpen}>
+                <Dialog open={meetingsModalOpen} onOpenChange={(open) => { setMeetingsModalOpen(open); if (!open) resetMeetingForm(); }}>
                   <DialogTrigger asChild>
                     <Button size="sm">
                       <Plus className="h-4 w-4 mr-2" />
@@ -850,7 +1167,7 @@ const BrokerDetails = () => {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Adicionar Nova Reunião</DialogTitle>
+                      <DialogTitle>{editingMeetingId ? "Editar Reunião" : "Adicionar Nova Reunião"}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
@@ -889,7 +1206,7 @@ const BrokerDetails = () => {
                           onChange={(e) => setNewMeeting({...newMeeting, date: e.target.value})}
                         />
                       </div>
-                      <Button onClick={addMeeting} className="w-full">Adicionar Reunião</Button>
+                      <Button onClick={addMeeting} className="w-full">{editingMeetingId ? "Atualizar" : "Adicionar"}</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -899,24 +1216,106 @@ const BrokerDetails = () => {
                   {brokerData.meetings.map(meeting => (
                     <div key={meeting.id} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold">{meeting.title}</h4>
-                        <Badge variant="outline">
-                          {new Date(meeting.date).toLocaleDateString('pt-BR')}
-                        </Badge>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold">{meeting.title}</h4>
+                            <Badge variant={meeting.status === 'completed' ? 'default' : 'secondary'}>
+                              {meeting.status === 'completed' ? 'Finalizada' : 'Pendente'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">Cliente: {meeting.clientName}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">
+                            {new Date(meeting.date).toLocaleDateString('pt-BR', { 
+                              day: '2-digit', 
+                              month: '2-digit', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </Badge>
+                          {meeting.status === 'pending' && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleOpenCompleteMeetingModal(meeting.id)}
+                            >
+                              Finalizar
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => handleEditMeeting(meeting)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteMeeting(meeting.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">{meeting.content}</p>
+                      {meeting.content && (
+                        <div className="mb-2">
+                          <p className="text-sm text-muted-foreground"><strong>Observações:</strong> {meeting.content}</p>
+                        </div>
+                      )}
+                      {meeting.status === 'completed' && meeting.summary && (
+                        <div className="mt-2 p-3 bg-muted rounded-md">
+                          <p className="text-sm font-medium mb-1">Resumo da reunião:</p>
+                          <p className="text-sm text-muted-foreground">{meeting.summary}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
+
+            {/* Modal para finalizar reunião */}
+            <Dialog open={completeMeetingModalOpen} onOpenChange={setCompleteMeetingModalOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Finalizar Reunião</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="meeting-summary">O que foi discutido na reunião? *</Label>
+                    <Textarea
+                      id="meeting-summary"
+                      placeholder="Descreva os principais pontos discutidos, decisões tomadas, próximos passos, etc."
+                      value={meetingSummary}
+                      onChange={(e) => setMeetingSummary(e.target.value)}
+                      rows={6}
+                      className="resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => {
+                        setCompleteMeetingModalOpen(false);
+                        setMeetingSummary("");
+                        setSelectedMeetingId(null);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleCompleteMeeting} 
+                      className="flex-1"
+                    >
+                      Finalizar Reunião
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="expenses">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Gastos Mensais</CardTitle>
-                <Dialog open={expensesModalOpen} onOpenChange={setExpensesModalOpen}>
+                <Dialog open={expensesModalOpen} onOpenChange={(open) => { setExpensesModalOpen(open); if (!open) resetExpenseForm(); }}>
                   <DialogTrigger asChild>
                     <Button size="sm">
                       <Plus className="h-4 w-4 mr-2" />
@@ -925,7 +1324,7 @@ const BrokerDetails = () => {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Adicionar Novo Gasto</DialogTitle>
+                      <DialogTitle>{editingExpenseId ? "Editar Gasto" : "Adicionar Novo Gasto"}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
@@ -965,7 +1364,7 @@ const BrokerDetails = () => {
                           onChange={(e) => setNewExpense({...newExpense, date: e.target.value})}
                         />
                       </div>
-                      <Button onClick={addExpense} className="w-full">Adicionar Gasto</Button>
+                      <Button onClick={addExpense} className="w-full">{editingExpenseId ? "Atualizar" : "Adicionar"}</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -980,13 +1379,19 @@ const BrokerDetails = () => {
                           {new Date(expense.date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="flex items-center gap-3">
                         <p className="font-semibold text-destructive">
                           {new Intl.NumberFormat('pt-BR', {
                             style: 'currency',
                             currency: 'BRL'
                           }).format(expense.cost)}
                         </p>
+                        <Button variant="ghost" size="icon" onClick={() => handleEditExpense(expense)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteExpense(expense.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}

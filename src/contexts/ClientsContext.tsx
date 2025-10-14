@@ -11,6 +11,7 @@ export interface Client {
   negotiation_status: string;
   is_active: boolean;
   status_color: string;
+  last_updates?: string;
   created_at: string;
   updated_at: string;
 }

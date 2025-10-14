@@ -21,6 +21,7 @@ interface BrokersContextType {
   updateBroker: (id: string, data: Partial<Broker>) => Promise<Broker>;
   deleteBroker: (id: string) => Promise<void>;
   getBrokerById: (id: string) => Broker | undefined;
+  refreshBrokers: () => Promise<void>;
 }
 
 const BrokersContext = createContext<BrokersContextType | undefined>(undefined);
@@ -128,13 +129,20 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
       total_value: data.totalValue ?? 0
     };
 
+    console.log('🔄 Tentando criar broker com dados:', brokerData);
+
     const { data: newBroker, error } = await supabase
       .from('brokers')
       .insert([brokerData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Erro ao criar broker:', error);
+      throw error;
+    }
+
+    console.log('✅ Broker criado com sucesso:', newBroker);
 
     const mappedBroker: Broker = {
       id: newBroker.id,
@@ -207,13 +215,18 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
 
   const getBrokerById = (id: string) => brokers.find(b => b.id === id);
 
+  const refreshBrokers = async () => {
+    await fetchBrokers();
+  };
+
   const value: BrokersContextType = {
     brokers,
     isLoading,
     createBroker,
     updateBroker,
     deleteBroker,
-    getBrokerById
+    getBrokerById,
+    refreshBrokers
   };
 
   return (

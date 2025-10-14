@@ -14,7 +14,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
-  register: (name: string, email: string, password: string) => Promise<{ error?: string }>;
+  register: (name: string, email: string, password: string, role?: 'manager' | 'broker') => Promise<{ error?: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -154,7 +154,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, role: 'manager' | 'broker' = 'broker') => {
     setIsLoading(true);
     try {
       // Create auth user - the database trigger will automatically create the profile
@@ -171,8 +171,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return { error: signUpError.message };
       }
 
+      if (!data.user) {
+        return { error: 'Erro ao criar usuário' };
+      }
+
+      // Inserir role na tabela user_roles
+      // Removemos o .select() pois pode causar erro de RLS
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user.id,
+          role: role
+        });
+
+      if (roleError) {
+        console.error('❌ Erro ao definir role:', roleError);
+        console.error('❌ Detalhes completos:', JSON.stringify(roleError, null, 2));
+        console.error('❌ Tentando inserir:', { user_id: data.user.id, role: role });
+        
+        // Retornar erro informativo para o usuário
+        return { 
+          error: `Usuário criado mas falhou ao definir função: ${roleError.message}. 
+                  Isso pode ser um problema de permissão no banco de dados. 
+                  Entre em contato com o administrador.` 
+        };
+      }
+      
+      console.log('✅ Role definida com sucesso!', { user_id: data.user.id, role: role });
+
       // Wait a moment for the trigger to create the profile
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Try to get the active session now (signUp may not return session immediately)
       const { data: sessionData } = await supabase.auth.getSession();
@@ -185,27 +213,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         ]);
 
         const profile = profileResult.data;
+        const userRole = roleResult.data || role;
 
         if (profile) {
           setUser({ 
             id: profile.user_id, 
             email: profile.email, 
             name: profile.name, 
-            role: roleResult.data || null 
+            role: userRole
           });
         } else {
           setUser({ 
             id: session.user.id, 
             email: session.user.email ?? '', 
-            name: (session.user.user_metadata as any)?.name ?? '', 
-            role: roleResult.data || null 
+            name: session.user.user_metadata?.name as string ?? '', 
+            role: userRole
           });
         }
       }
 
       return {};
-    } catch (err: any) {
-      return { error: err?.message ?? 'Erro desconhecido ao registrar' };
+    } catch (err) {
+      const error = err as Error;
+      return { error: error?.message ?? 'Erro desconhecido ao registrar' };
     } finally {
       setIsLoading(false);
     }

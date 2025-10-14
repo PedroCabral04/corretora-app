@@ -242,6 +242,8 @@ export type Database = {
           meeting_date: string
           meeting_type: string
           notes: string | null
+          status: string
+          summary: string | null
           updated_at: string
           user_id: string
         }
@@ -253,6 +255,8 @@ export type Database = {
           meeting_date: string
           meeting_type: string
           notes?: string | null
+          status?: string
+          summary?: string | null
           updated_at?: string
           user_id: string
         }
@@ -264,6 +268,8 @@ export type Database = {
           meeting_date?: string
           meeting_type?: string
           notes?: string | null
+          status?: string
+          summary?: string | null
           updated_at?: string
           user_id?: string
         }

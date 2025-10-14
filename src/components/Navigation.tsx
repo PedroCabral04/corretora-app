@@ -3,6 +3,7 @@ import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon, Shield, Men
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
+import { useBrokers } from "@/contexts/BrokersContext";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -58,7 +59,8 @@ export const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { hasPermission } = usePermission();
+  const { hasPermission, role } = usePermission();
+  const { brokers } = useBrokers();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -71,14 +73,32 @@ export const Navigation = () => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const navItems = [
-    { path: "/dashboard", label: "Dashboard", icon: Home },
-    { path: "/brokers", label: "Corretores", icon: Users },
-    { path: "/tasks", label: "Tarefas", icon: CheckSquare },
-    { path: "/agenda", label: "Agenda", icon: CalendarIcon },
-    { path: "/goals", label: "Metas", icon: Target },
-    ...(hasPermission('manage_users') ? [{ path: "/users", label: "Usuários", icon: Shield }] : []),
-  ];
+  // Buscar o ID do broker para o corretor logado
+  const getBrokerProfilePath = () => {
+    if (role !== 'broker' || !user) return '/brokers';
+    const userBroker = brokers.find(broker => 
+      broker.email?.toLowerCase() === user.email.toLowerCase()
+    );
+    return userBroker ? `/broker/${userBroker.id}` : '/brokers';
+  };
+
+  // Navegação adaptativa baseada no role
+  const navItems = role === 'broker' 
+    ? [
+        { path: "/dashboard", label: "Meu Dashboard", icon: Home },
+        { path: getBrokerProfilePath(), label: "Meu Perfil", icon: User2 },
+        { path: "/tasks", label: "Minhas Tarefas", icon: CheckSquare },
+        { path: "/agenda", label: "Minha Agenda", icon: CalendarIcon },
+        { path: "/goals", label: "Minhas Metas", icon: Target },
+      ]
+    : [
+        { path: "/dashboard", label: "Dashboard", icon: Home },
+        { path: "/brokers", label: "Corretores", icon: Users },
+        { path: "/tasks", label: "Tarefas", icon: CheckSquare },
+        { path: "/agenda", label: "Agenda", icon: CalendarIcon },
+        { path: "/goals", label: "Metas", icon: Target },
+        ...(hasPermission('manage_users') ? [{ path: "/users", label: "Usuários", icon: Shield }] : []),
+      ];
 
   return (
     <nav className="bg-card/95 backdrop-blur-md border-b border-border/40 sticky top-0 z-50 shadow-sm">
@@ -227,6 +247,15 @@ export const Navigation = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {role === 'broker' && (
+                    <DropdownMenuItem 
+                      onClick={() => navigate(getBrokerProfilePath())}
+                      className="cursor-pointer"
+                    >
+                      <User2 className="mr-2 h-4 w-4" />
+                      <span>Meu Perfil</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem 
                     onClick={handleLogout}
                     className="text-destructive focus:text-destructive cursor-pointer"

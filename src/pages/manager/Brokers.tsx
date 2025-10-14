@@ -10,8 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
 import { Plus, Search, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useBrokers } from '@/contexts/BrokersContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrokers } from '@/contexts/BrokersContext';
 import { BrokerCardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -65,9 +65,9 @@ const Brokers = () => {
   } | null>(null);
   const [brokerToDelete, setBrokerToDelete] = useState<{ id: string; name: string } | null>(null);
 
-  // Redirecionar corretor para sua própria página de detalhes
+  // Redirecionar corretor para sua própria página de perfil
   useEffect(() => {
-    const redirectBrokerToDetails = async () => {
+    const redirectBrokerToProfile = async () => {
       if (!user || isLoading) return;
       
       // Se o usuário é um corretor (não gerente ou admin)
@@ -78,20 +78,20 @@ const Brokers = () => {
         );
 
         if (userBroker) {
-          // Redirecionar para a página de detalhes do corretor
-          navigate(`/broker/${userBroker.id}`, { replace: true });
+          // Redirecionar para a página de perfil do corretor
+          navigate(`/broker/profile`, { replace: true });
         } else {
           // Se não existe registro de broker, criar um automaticamente
           try {
-            const newBroker = await createBroker({
+            await createBroker({
               name: user.name,
               email: user.email,
               phone: '',
               creci: ''
             });
             
-            // Redirecionar para a página de detalhes do novo corretor
-            navigate(`/broker/${newBroker.id}`, { replace: true });
+            // Redirecionar para a página de perfil
+            navigate(`/broker/profile`, { replace: true });
           } catch (error) {
             console.error('Erro ao criar registro de corretor:', error);
             toast({
@@ -104,7 +104,7 @@ const Brokers = () => {
       }
     };
 
-    redirectBrokerToDetails();
+    redirectBrokerToProfile();
   }, [user, isLoading, brokers, navigate, createBroker, toast]);
 
   const handleViewBrokerDetails = (brokerId: string) => {
