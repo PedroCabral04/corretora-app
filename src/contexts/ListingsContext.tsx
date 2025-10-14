@@ -8,7 +8,8 @@ export interface Listing {
   propertyType: 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara';
   quantity: number;
   listingDate: string;
-  status: 'Ativa' | 'Vendida' | 'Cancelada';
+  status: 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação' | 'Agregado';
+  isAggregate?: boolean; // Indica se é um registro de contador (não detalhado)
   // Campos antigos mantidos para compatibilidade (podem ser removidos futuramente)
   propertyAddress?: string;
   ownerName?: string;
@@ -22,6 +23,9 @@ interface ListingsContextType {
   updateListing: (id: string, data: Partial<Listing>) => Promise<Listing>;
   deleteListing: (id: string) => Promise<void>;
   getListingsByBrokerId: (brokerId: string) => Listing[];
+  getAggregateQuantity: (brokerId: string, propertyType: string) => number;
+  updateAggregateQuantity: (brokerId: string, propertyType: string, quantity: number) => Promise<void>;
+  getDetailedListingsByType: (brokerId: string, propertyType: string) => Listing[];
 }
 
 const ListingsContext = createContext<ListingsContextType | undefined>(undefined);
@@ -64,7 +68,8 @@ export const ListingsProvider = ({ children }: ListingsProviderProps) => {
         propertyType: (listing.property_type || 'Apartamento') as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
         quantity: listing.quantity || 1,
         listingDate: listing.listing_date,
-        status: listing.status as 'Ativa' | 'Vendida' | 'Cancelada',
+        status: listing.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação' | 'Agregado',
+        isAggregate: listing.is_aggregate || listing.status === 'Agregado',
         // Campos antigos para compatibilidade
         propertyAddress: listing.property_address,
         ownerName: listing.owner_name,
@@ -93,7 +98,8 @@ export const ListingsProvider = ({ children }: ListingsProviderProps) => {
       property_type: data.propertyType,
       quantity: data.quantity,
       listing_date: data.listingDate,
-      status: data.status
+      status: data.status,
+      is_aggregate: data.isAggregate || false
     };
 
     const { data: newListing, error } = await supabase
@@ -111,7 +117,8 @@ export const ListingsProvider = ({ children }: ListingsProviderProps) => {
       propertyType: newListingData.property_type as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
       quantity: newListingData.quantity || 1,
       listingDate: newListingData.listing_date,
-      status: newListingData.status as 'Ativa' | 'Vendida' | 'Cancelada',
+      status: newListingData.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação' | 'Agregado',
+      isAggregate: newListingData.is_aggregate || newListingData.status === 'Agregado',
       propertyAddress: newListingData.property_address,
       ownerName: newListingData.owner_name,
       propertyValue: newListingData.property_value ? Number(newListingData.property_value) : undefined
@@ -147,7 +154,8 @@ export const ListingsProvider = ({ children }: ListingsProviderProps) => {
       propertyType: updatedData.property_type as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
       quantity: updatedData.quantity || 1,
       listingDate: updatedData.listing_date,
-      status: updatedData.status as 'Ativa' | 'Vendida' | 'Cancelada',
+      status: updatedData.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação' | 'Agregado',
+      isAggregate: updatedData.is_aggregate || updatedData.status === 'Agregado',
       propertyAddress: updatedData.property_address,
       ownerName: updatedData.owner_name,
       propertyValue: updatedData.property_value ? Number(updatedData.property_value) : undefined
@@ -173,13 +181,64 @@ export const ListingsProvider = ({ children }: ListingsProviderProps) => {
 
   const getListingsByBrokerId = (brokerId: string) => listings.filter(l => l.brokerId === brokerId);
 
+  const getAggregateQuantity = (brokerId: string, propertyType: string) => {
+    const aggregate = listings.find(
+      l => l.brokerId === brokerId && 
+           l.propertyType === propertyType && 
+           l.isAggregate === true
+    );
+    return aggregate?.quantity || 0;
+  };
+
+  const updateAggregateQuantity = async (brokerId: string, propertyType: string, quantity: number) => {
+    if (!user) throw new Error('Usuário não autenticado');
+
+    // Buscar registro agregado existente
+    const existingAggregate = listings.find(
+      l => l.brokerId === brokerId && 
+           l.propertyType === propertyType && 
+           l.isAggregate === true
+    );
+
+    if (existingAggregate) {
+      // Atualizar existente
+      if (quantity === 0) {
+        // Se quantidade for 0, deletar o registro
+        await deleteListing(existingAggregate.id);
+      } else {
+        await updateListing(existingAggregate.id, { quantity });
+      }
+    } else if (quantity > 0) {
+      // Criar novo registro agregado
+      await createListing({
+        brokerId,
+        propertyType: propertyType as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
+        quantity,
+        listingDate: new Date().toISOString().split('T')[0],
+        status: 'Agregado',
+        isAggregate: true
+      });
+    }
+  };
+
+  const getDetailedListingsByType = (brokerId: string, propertyType: string) => {
+    return listings.filter(
+      l => l.brokerId === brokerId && 
+           l.propertyType === propertyType && 
+           l.isAggregate !== true
+    );
+  };
+
   const value: ListingsContextType = {
     listings,
     isLoading,
     createListing,
     updateListing,
     deleteListing,
-    getListingsByBrokerId
+    getListingsByBrokerId,
+    getAggregateQuantity,
+    updateAggregateQuantity,
+    getDetailedListingsByType
   };
 
   return (

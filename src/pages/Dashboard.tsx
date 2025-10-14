@@ -72,7 +72,7 @@ const Dashboard = () => {
   // Metrics
   const totalBrokers = brokers.length;
   const totalSales = filteredData.sales.length;
-  const totalListings = filteredData.listings.filter(l => l.status === 'Ativa').length;
+  const totalListings = filteredData.listings.filter(l => l.status === 'Ativo').length;
   const totalValue = filteredData.sales.reduce((sum, sale) => sum + (sale.saleValue || 0), 0);
   const totalExpenses = filteredData.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const netProfit = totalValue - totalExpenses;
