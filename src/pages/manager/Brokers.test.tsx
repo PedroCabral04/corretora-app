@@ -5,17 +5,21 @@ import { render, screen } from "@/test/test-utils";
 import "@testing-library/jest-dom/vitest";
 import Brokers from "./Brokers";
 
+// Define mocks
 const mockUseBrokers = vi.fn();
 const mockUseAuth = vi.fn();
 const mockToast = vi.fn();
 const mockNavigate = vi.fn();
 
+// Mock contexts before imports
 vi.mock("@/contexts/BrokersContext", () => ({
   useBrokers: () => mockUseBrokers(),
+  BrokersProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => mockUseAuth(),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
