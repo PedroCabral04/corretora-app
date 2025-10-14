@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Home, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Home, Mail, Lock, User, Eye, EyeOff, Briefcase, Users } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import heroImage from '@/assets/hero-image.jpg';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +19,7 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState<'manager' | 'broker'>('broker');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -56,14 +58,18 @@ const Register = () => {
     }
 
     try {
-      const res = await register(name, email, password);
+      const res = await register(name, email, password, role);
       if (res?.error) {
         setError(res.error);
         toast({ title: 'Erro no cadastro', description: res.error, variant: 'destructive' });
         return;
       }
 
-      toast({ title: "Conta criada com sucesso!", description: "Bem-vindo ao CorretoraApp" });
+      const roleLabel = role === 'broker' ? 'Corretor' : 'Gerente';
+      toast({ 
+        title: "Conta criada com sucesso!", 
+        description: `Bem-vindo ao CorretoraApp como ${roleLabel}` 
+      });
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta');
@@ -136,6 +142,36 @@ const Register = () => {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Eu sou um(a):</Label>
+                  <RadioGroup value={role} onValueChange={(value) => setRole(value as 'manager' | 'broker')}>
+                    <div className="flex items-start space-x-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer">
+                      <RadioGroupItem value="broker" id="broker" className="mt-0.5" />
+                      <Label htmlFor="broker" className="font-normal cursor-pointer flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Briefcase className="h-4 w-4 text-purple-500" />
+                          <span className="font-semibold">Corretor</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Gerenciar meus clientes, imóveis e vendas
+                        </p>
+                      </Label>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer">
+                      <RadioGroupItem value="manager" id="manager" className="mt-0.5" />
+                      <Label htmlFor="manager" className="font-normal cursor-pointer flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Users className="h-4 w-4 text-blue-500" />
+                          <span className="font-semibold">Gerente</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Gerenciar equipe de corretores e visão geral
+                        </p>
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
 
                 <div className="space-y-2">

@@ -58,7 +58,7 @@ export const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { hasPermission } = usePermission();
+  const { hasPermission, role } = usePermission();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -71,14 +71,22 @@ export const Navigation = () => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const navItems = [
-    { path: "/dashboard", label: "Dashboard", icon: Home },
-    { path: "/brokers", label: "Corretores", icon: Users },
-    { path: "/tasks", label: "Tarefas", icon: CheckSquare },
-    { path: "/agenda", label: "Agenda", icon: CalendarIcon },
-    { path: "/goals", label: "Metas", icon: Target },
-    ...(hasPermission('manage_users') ? [{ path: "/users", label: "Usuários", icon: Shield }] : []),
-  ];
+  // Navegação adaptativa baseada no role
+  const navItems = role === 'broker' 
+    ? [
+        { path: "/dashboard", label: "Meu Dashboard", icon: Home },
+        { path: "/tasks", label: "Minhas Tarefas", icon: CheckSquare },
+        { path: "/agenda", label: "Minha Agenda", icon: CalendarIcon },
+        { path: "/goals", label: "Minhas Metas", icon: Target },
+      ]
+    : [
+        { path: "/dashboard", label: "Dashboard", icon: Home },
+        { path: "/brokers", label: "Corretores", icon: Users },
+        { path: "/tasks", label: "Tarefas", icon: CheckSquare },
+        { path: "/agenda", label: "Agenda", icon: CalendarIcon },
+        { path: "/goals", label: "Metas", icon: Target },
+        ...(hasPermission('manage_users') ? [{ path: "/users", label: "Usuários", icon: Shield }] : []),
+      ];
 
   return (
     <nav className="bg-card/95 backdrop-blur-md border-b border-border/40 sticky top-0 z-50 shadow-sm">
