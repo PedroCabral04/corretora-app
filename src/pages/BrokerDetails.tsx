@@ -49,7 +49,7 @@ const BrokerDetails = () => {
     getDetailedListingsByType
   } = useListings();
   const { sales, createSale, updateSale, deleteSale, getSalesByBrokerId } = useSales();
-  const { meetings, createMeeting, updateMeeting, deleteMeeting, getMeetingsByBrokerId } = useMeetings();
+  const { meetings, createMeeting, updateMeeting, completeMeeting, deleteMeeting, getMeetingsByBrokerId } = useMeetings();
   const { expenses, createExpense, updateExpense, deleteExpense, getExpensesByBrokerId } = useExpenses();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
@@ -104,7 +104,10 @@ const BrokerDetails = () => {
         id: m.id,
         title: m.meetingType,
         content: m.notes || '',
-        date: m.meetingDate
+        date: m.meetingDate,
+        status: m.status,
+        summary: m.summary,
+        clientName: m.clientName
       })),
       expenses: brokerExpenses.map(e => ({
         id: e.id,
@@ -123,6 +126,7 @@ const BrokerDetails = () => {
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [listingsModalOpen, setListingsModalOpen] = useState(false);
   const [meetingsModalOpen, setMeetingsModalOpen] = useState(false);
+  const [completeMeetingModalOpen, setCompleteMeetingModalOpen] = useState(false);
   const [expensesModalOpen, setExpensesModalOpen] = useState(false);
   const [clientsModalOpen, setClientsModalOpen] = useState(false);
   const [selectedPropertyType, setSelectedPropertyType] = useState<'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara' | null>(null);
@@ -131,6 +135,8 @@ const BrokerDetails = () => {
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
   const [newListing, setNewListing] = useState({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "" });
   const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
+  const [meetingSummary, setMeetingSummary] = useState("");
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [newExpense, setNewExpense] = useState({ description: "", amount: "", category: "", date: "" });
   const [clientForm, setClientForm] = useState({
     client_name: "",
@@ -138,6 +144,7 @@ const BrokerDetails = () => {
     negotiation_status: "",
     is_active: true,
     status_color: "green",
+    last_updates: "",
   });
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
@@ -361,6 +368,39 @@ const BrokerDetails = () => {
     }
   };
 
+  const handleOpenCompleteMeetingModal = (meetingId: string) => {
+    setSelectedMeetingId(meetingId);
+    setMeetingSummary("");
+    setCompleteMeetingModalOpen(true);
+  };
+
+  const handleCompleteMeeting = async () => {
+    if (!meetingSummary.trim()) {
+      toast({ title: "Erro", description: "Por favor, descreva o que foi discutido na reunião", variant: "destructive" });
+      return;
+    }
+
+    if (!selectedMeetingId) {
+      toast({ title: "Erro", description: "Reunião não encontrada", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await completeMeeting(selectedMeetingId, meetingSummary);
+      toast({ title: "Sucesso", description: "Reunião finalizada com sucesso!" });
+      setCompleteMeetingModalOpen(false);
+      setMeetingSummary("");
+      setSelectedMeetingId(null);
+    } catch (error) {
+      console.error("Erro ao finalizar reunião:", error);
+      toast({
+        title: "Erro ao finalizar reunião",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    }
+  };
+
   const addExpense = async () => {
     if (!newExpense.description || !newExpense.amount || !newExpense.category || !newExpense.date) {
       toast({ title: "Erro", description: "Preencha todos os campos obrigatórios", variant: "destructive" });
@@ -440,6 +480,7 @@ const BrokerDetails = () => {
       negotiation_status: "",
       is_active: true,
       status_color: "green",
+      last_updates: "",
     });
     setEditingClientId(null);
   };
@@ -493,6 +534,7 @@ const BrokerDetails = () => {
       negotiation_status: client.negotiation_status,
       is_active: client.is_active,
       status_color: client.status_color || "green",
+      last_updates: client.last_updates || "",
     });
     setEditingClientId(client.id);
     setClientsModalOpen(true);
@@ -729,6 +771,20 @@ const BrokerDetails = () => {
                         </Select>
                       </div>
 
+                      <div>
+                        <Label htmlFor="last_updates">Últimas Atualizações</Label>
+                        <Textarea
+                          id="last_updates"
+                          value={clientForm.last_updates}
+                          onChange={(e) =>
+                            setClientForm({ ...clientForm, last_updates: e.target.value })
+                          }
+                          placeholder="Anote aqui as últimas atualizações sobre o cliente..."
+                          rows={4}
+                          className="resize-none"
+                        />
+                      </div>
+
                       <Button type="submit" className="w-full">
                         {editingClientId ? "Atualizar" : "Adicionar"}
                       </Button>
@@ -744,19 +800,20 @@ const BrokerDetails = () => {
                       <TableHead>Cliente</TableHead>
                       <TableHead>Interesse</TableHead>
                       <TableHead>Negociação</TableHead>
+                      <TableHead>Últimas Atualizações</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {clientsLoading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center">
+                        <TableCell colSpan={6} className="text-center">
                           Carregando...
                         </TableCell>
                       </TableRow>
                     ) : brokerClients.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center">
+                        <TableCell colSpan={6} className="text-center">
                           Nenhum cliente cadastrado para este corretor
                         </TableCell>
                       </TableRow>
@@ -783,6 +840,11 @@ const BrokerDetails = () => {
                           </TableCell>
                           <TableCell>{client.interest}</TableCell>
                           <TableCell>{client.negotiation_status}</TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="truncate" title={client.last_updates || ''}>
+                              {client.last_updates || '-'}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button
@@ -1092,11 +1154,34 @@ const BrokerDetails = () => {
                   {brokerData.meetings.map(meeting => (
                     <div key={meeting.id} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold">{meeting.title}</h4>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold">{meeting.title}</h4>
+                            <Badge variant={meeting.status === 'completed' ? 'default' : 'secondary'}>
+                              {meeting.status === 'completed' ? 'Finalizada' : 'Pendente'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">Cliente: {meeting.clientName}</p>
+                        </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">
-                            {new Date(meeting.date).toLocaleDateString('pt-BR')}
+                            {new Date(meeting.date).toLocaleDateString('pt-BR', { 
+                              day: '2-digit', 
+                              month: '2-digit', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </Badge>
+                          {meeting.status === 'pending' && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleOpenCompleteMeetingModal(meeting.id)}
+                            >
+                              Finalizar
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => handleEditMeeting(meeting)}>
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -1105,12 +1190,63 @@ const BrokerDetails = () => {
                           </Button>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">{meeting.content}</p>
+                      {meeting.content && (
+                        <div className="mb-2">
+                          <p className="text-sm text-muted-foreground"><strong>Observações:</strong> {meeting.content}</p>
+                        </div>
+                      )}
+                      {meeting.status === 'completed' && meeting.summary && (
+                        <div className="mt-2 p-3 bg-muted rounded-md">
+                          <p className="text-sm font-medium mb-1">Resumo da reunião:</p>
+                          <p className="text-sm text-muted-foreground">{meeting.summary}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
+
+            {/* Modal para finalizar reunião */}
+            <Dialog open={completeMeetingModalOpen} onOpenChange={setCompleteMeetingModalOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Finalizar Reunião</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="meeting-summary">O que foi discutido na reunião? *</Label>
+                    <Textarea
+                      id="meeting-summary"
+                      placeholder="Descreva os principais pontos discutidos, decisões tomadas, próximos passos, etc."
+                      value={meetingSummary}
+                      onChange={(e) => setMeetingSummary(e.target.value)}
+                      rows={6}
+                      className="resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => {
+                        setCompleteMeetingModalOpen(false);
+                        setMeetingSummary("");
+                        setSelectedMeetingId(null);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleCompleteMeeting} 
+                      className="flex-1"
+                    >
+                      Finalizar Reunião
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="expenses">

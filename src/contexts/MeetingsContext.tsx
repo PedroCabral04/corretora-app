@@ -9,13 +9,16 @@ export interface Meeting {
   meetingType: string;
   meetingDate: string;
   notes?: string;
+  status: 'pending' | 'completed';
+  summary?: string;
 }
 
 interface MeetingsContextType {
   meetings: Meeting[];
   isLoading: boolean;
-  createMeeting: (data: Omit<Meeting, 'id'>) => Promise<Meeting>;
+  createMeeting: (data: Omit<Meeting, 'id' | 'status' | 'summary'>) => Promise<Meeting>;
   updateMeeting: (id: string, data: Partial<Meeting>) => Promise<Meeting>;
+  completeMeeting: (id: string, summary: string) => Promise<Meeting>;
   deleteMeeting: (id: string) => Promise<void>;
   getMeetingsByBrokerId: (brokerId: string) => Meeting[];
 }
@@ -59,7 +62,9 @@ export const MeetingsProvider = ({ children }: MeetingsProviderProps) => {
         clientName: meeting.client_name,
         meetingType: meeting.meeting_type,
         meetingDate: meeting.meeting_date,
-        notes: meeting.notes || undefined
+        notes: meeting.notes || undefined,
+        status: (meeting.status as 'pending' | 'completed') || 'pending',
+        summary: meeting.summary || undefined
       }));
 
       setMeetings(mappedMeetings);
@@ -75,7 +80,7 @@ export const MeetingsProvider = ({ children }: MeetingsProviderProps) => {
     fetchMeetings();
   }, [user]);
 
-  const createMeeting = async (data: Omit<Meeting, 'id'>) => {
+  const createMeeting = async (data: Omit<Meeting, 'id' | 'status' | 'summary'>) => {
     if (!user) throw new Error('Usuário não autenticado');
 
     const meetingData = {
@@ -84,7 +89,8 @@ export const MeetingsProvider = ({ children }: MeetingsProviderProps) => {
       client_name: data.clientName,
       meeting_type: data.meetingType,
       meeting_date: data.meetingDate,
-      notes: data.notes || null
+      notes: data.notes || null,
+      status: 'pending' // Sempre cria como pendente
     };
 
     const { data: newMeeting, error } = await supabase
@@ -101,7 +107,9 @@ export const MeetingsProvider = ({ children }: MeetingsProviderProps) => {
       clientName: newMeeting.client_name,
       meetingType: newMeeting.meeting_type,
       meetingDate: newMeeting.meeting_date,
-      notes: newMeeting.notes || undefined
+      notes: newMeeting.notes || undefined,
+      status: (newMeeting.status as 'pending' | 'completed') || 'pending',
+      summary: newMeeting.summary || undefined
     };
 
     setMeetings(prev => [mappedMeeting, ...prev]);
@@ -111,11 +119,13 @@ export const MeetingsProvider = ({ children }: MeetingsProviderProps) => {
   const updateMeeting = async (id: string, data: Partial<Meeting>) => {
     if (!user) throw new Error('Usuário não autenticado');
 
-    const updateData: any = {};
+    const updateData: Record<string, any> = {};
     if (data.clientName !== undefined) updateData.client_name = data.clientName;
     if (data.meetingType !== undefined) updateData.meeting_type = data.meetingType;
     if (data.meetingDate !== undefined) updateData.meeting_date = data.meetingDate;
     if (data.notes !== undefined) updateData.notes = data.notes || null;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.summary !== undefined) updateData.summary = data.summary || null;
 
     const { data: updatedMeeting, error } = await supabase
       .from('meetings')
@@ -133,7 +143,40 @@ export const MeetingsProvider = ({ children }: MeetingsProviderProps) => {
       clientName: updatedMeeting.client_name,
       meetingType: updatedMeeting.meeting_type,
       meetingDate: updatedMeeting.meeting_date,
-      notes: updatedMeeting.notes || undefined
+      notes: updatedMeeting.notes || undefined,
+      status: (updatedMeeting.status as 'pending' | 'completed') || 'pending',
+      summary: updatedMeeting.summary || undefined
+    };
+
+    setMeetings(prev => prev.map(meeting => meeting.id === id ? mappedMeeting : meeting));
+    return mappedMeeting;
+  };
+
+  const completeMeeting = async (id: string, summary: string) => {
+    if (!user) throw new Error('Usuário não autenticado');
+
+    const { data: completedMeeting, error } = await supabase
+      .from('meetings')
+      .update({ 
+        status: 'completed',
+        summary: summary
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const mappedMeeting: Meeting = {
+      id: completedMeeting.id,
+      brokerId: completedMeeting.broker_id,
+      clientName: completedMeeting.client_name,
+      meetingType: completedMeeting.meeting_type,
+      meetingDate: completedMeeting.meeting_date,
+      notes: completedMeeting.notes || undefined,
+      status: 'completed',
+      summary: completedMeeting.summary || undefined
     };
 
     setMeetings(prev => prev.map(meeting => meeting.id === id ? mappedMeeting : meeting));
@@ -161,6 +204,7 @@ export const MeetingsProvider = ({ children }: MeetingsProviderProps) => {
     isLoading,
     createMeeting,
     updateMeeting,
+    completeMeeting,
     deleteMeeting,
     getMeetingsByBrokerId
   };
