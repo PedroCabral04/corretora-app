@@ -234,7 +234,7 @@ describe("Dashboard page", () => {
           propertyType: "Casa",
           quantity: 1,
           listingDate: `${currentYear}-04-01`,
-          status: "Ativa",
+          status: "Ativo",
         },
         {
           id: "listing-2",
@@ -242,7 +242,7 @@ describe("Dashboard page", () => {
           propertyType: "Casa",
           quantity: 1,
           listingDate: `${currentYear}-03-01`,
-          status: "Vendida",
+          status: "Vendido",
         },
       ],
     });
@@ -357,7 +357,7 @@ describe("Dashboard page", () => {
           propertyType: "Casa",
           quantity: 1,
           listingDate: `${currentYear}-01-05`,
-          status: "Ativa",
+          status: "Ativo",
         },
         {
           id: "listing-2",
@@ -365,7 +365,7 @@ describe("Dashboard page", () => {
           propertyType: "Casa",
           quantity: 1,
           listingDate: `${currentYear}-01-10`,
-          status: "Ativa",
+          status: "Ativo",
         },
       ],
     });
