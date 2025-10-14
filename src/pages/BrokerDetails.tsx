@@ -133,7 +133,14 @@ const BrokerDetails = () => {
 
   // Form states
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
-  const [newListing, setNewListing] = useState({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "", propertyAddress: "", propertyValue: "" });
+  const [newListing, setNewListing] = useState({ 
+    propertyType: "Apartamento", 
+    quantity: "1", 
+    status: "Ativo", 
+    date: new Date().toISOString().split('T')[0], 
+    propertyAddress: "", 
+    propertyValue: "" 
+  });
   const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
   const [meetingSummary, setMeetingSummary] = useState("");
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
@@ -261,7 +268,14 @@ const BrokerDetails = () => {
         toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
       }
 
-      setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "", propertyAddress: "", propertyValue: "" });
+      setNewListing({ 
+        propertyType: "Apartamento", 
+        quantity: "1", 
+        status: "Ativo", 
+        date: new Date().toISOString().split('T')[0], 
+        propertyAddress: "", 
+        propertyValue: "" 
+      });
       setEditingListingId(null);
       setListingsModalOpen(false);
       
@@ -281,7 +295,7 @@ const BrokerDetails = () => {
       propertyType: listing.propertyType || "",
       quantity: listing.quantity?.toString() || "1",
       status: listing.status,
-      date: listing.date,
+      date: listing.listingDate || listing.date,
       propertyAddress: listing.propertyAddress || "",
       propertyValue: listing.propertyValue?.toString() || ""
     });
@@ -497,7 +511,14 @@ const BrokerDetails = () => {
   };
 
   const resetListingForm = () => {
-    setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "", propertyAddress: "", propertyValue: "" });
+    setNewListing({ 
+      propertyType: "Apartamento", 
+      quantity: "1", 
+      status: "Ativo", 
+      date: new Date().toISOString().split('T')[0], 
+      propertyAddress: "", 
+      propertyValue: "" 
+    });
     setEditingListingId(null);
   };
 

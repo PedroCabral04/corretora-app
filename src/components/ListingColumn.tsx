@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Home, Building2, Building, MapPin, TreePine } from 'lucide-react';
 import { Listing } from '@/contexts/ListingsContext';
+import { formatDateBR } from '@/lib/utils';
 
 interface ListingColumnProps {
   propertyType: 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara';
@@ -156,29 +157,15 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
                     key={listing.id}
                     className="border rounded-lg p-3 space-y-2 hover:border-primary/50 transition-colors bg-card"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          {getStatusBadge(listing.status)}
-                          {listing.quantity > 1 && (
-                            <Badge variant="outline" className="text-xs">
-                              x{listing.quantity}
-                            </Badge>
-                          )}
-                        </div>
-                        {listing.propertyAddress && (
-                          <p className="text-xs text-foreground font-medium mb-1 truncate" title={listing.propertyAddress}>
-                            📍 {listing.propertyAddress}
-                          </p>
+                    {/* Header: Status e Botões */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(listing.status)}
+                        {listing.quantity > 1 && (
+                          <Badge variant="outline" className="text-xs">
+                            x{listing.quantity}
+                          </Badge>
                         )}
-                        {listing.propertyValue && (
-                          <p className="text-xs text-green-600 dark:text-green-400 font-semibold mb-1">
-                            💰 R$ {listing.propertyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(listing.listingDate).toLocaleDateString('pt-BR')}
-                        </p>
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -199,6 +186,25 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
                         </Button>
                       </div>
                     </div>
+
+                    {/* Endereço - Ocupa toda largura */}
+                    {listing.propertyAddress && (
+                      <p className="text-xs text-foreground font-medium" title={listing.propertyAddress}>
+                        📍 {listing.propertyAddress}
+                      </p>
+                    )}
+
+                    {/* Valor - Ocupa toda largura */}
+                    {listing.propertyValue && (
+                      <p className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                        💰 R$ {listing.propertyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    )}
+
+                    {/* Data */}
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateBR(listing.listingDate)}
+                    </p>
                   </div>
                 ))}
               </div>
