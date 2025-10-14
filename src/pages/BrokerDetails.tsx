@@ -133,7 +133,7 @@ const BrokerDetails = () => {
 
   // Form states
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
-  const [newListing, setNewListing] = useState({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "" });
+  const [newListing, setNewListing] = useState({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "", propertyAddress: "", propertyValue: "" });
   const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
   const [meetingSummary, setMeetingSummary] = useState("");
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
@@ -243,7 +243,9 @@ const BrokerDetails = () => {
           propertyType: newListing.propertyType as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
           quantity: parseInt(newListing.quantity),
           listingDate: newListing.date,
-          status: newListing.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação'
+          status: newListing.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação',
+          propertyAddress: newListing.propertyAddress || undefined,
+          propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
         });
         toast({ title: "Sucesso", description: "Captação atualizada com sucesso!" });
       } else {
@@ -252,12 +254,14 @@ const BrokerDetails = () => {
           propertyType: newListing.propertyType as 'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara',
           quantity: parseInt(newListing.quantity),
           listingDate: newListing.date,
-          status: newListing.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação'
+          status: newListing.status as 'Ativo' | 'Desativado' | 'Vendido' | 'Moderação',
+          propertyAddress: newListing.propertyAddress || undefined,
+          propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
         });
         toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
       }
 
-      setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "" });
+      setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "", propertyAddress: "", propertyValue: "" });
       setEditingListingId(null);
       setListingsModalOpen(false);
       
@@ -277,7 +281,9 @@ const BrokerDetails = () => {
       propertyType: listing.propertyType || "",
       quantity: listing.quantity?.toString() || "1",
       status: listing.status,
-      date: listing.date
+      date: listing.date,
+      propertyAddress: listing.propertyAddress || "",
+      propertyValue: listing.propertyValue?.toString() || ""
     });
     setEditingListingId(listing.id);
     setListingsModalOpen(true);
@@ -491,7 +497,7 @@ const BrokerDetails = () => {
   };
 
   const resetListingForm = () => {
-    setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "" });
+    setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: "", propertyAddress: "", propertyValue: "" });
     setEditingListingId(null);
   };
 
@@ -1005,7 +1011,9 @@ const BrokerDetails = () => {
                         propertyType, 
                         quantity: "1", 
                         status: "Ativo", 
-                        date: new Date().toISOString().split('T')[0]
+                        date: new Date().toISOString().split('T')[0],
+                        propertyAddress: "",
+                        propertyValue: ""
                       });
                       setEditingListingId(null);
                       setListingsModalOpen(true);
@@ -1057,6 +1065,28 @@ const BrokerDetails = () => {
                         placeholder="Ex: 1"
                         value={newListing.quantity}
                         onChange={(e) => setNewListing({...newListing, quantity: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="listing-address">Endereço do Imóvel</Label>
+                      <Input
+                        id="listing-address"
+                        type="text"
+                        placeholder="Ex: Rua das Flores, 123 - Centro"
+                        value={newListing.propertyAddress}
+                        onChange={(e) => setNewListing({...newListing, propertyAddress: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="listing-value">Valor (R$)</Label>
+                      <Input
+                        id="listing-value"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Ex: 450000"
+                        value={newListing.propertyValue}
+                        onChange={(e) => setNewListing({...newListing, propertyValue: e.target.value})}
                       />
                     </div>
                     <div>

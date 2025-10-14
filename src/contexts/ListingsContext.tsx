@@ -99,7 +99,9 @@ export const ListingsProvider = ({ children }: ListingsProviderProps) => {
       quantity: data.quantity,
       listing_date: data.listingDate,
       status: data.status,
-      is_aggregate: data.isAggregate || false
+      is_aggregate: data.isAggregate || false,
+      property_address: data.propertyAddress || null,
+      property_value: data.propertyValue || null
     };
 
     const { data: newListing, error } = await supabase
@@ -136,6 +138,8 @@ export const ListingsProvider = ({ children }: ListingsProviderProps) => {
     if (data.quantity !== undefined) updateData.quantity = data.quantity;
     if (data.listingDate !== undefined) updateData.listing_date = data.listingDate;
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.propertyAddress !== undefined) updateData.property_address = data.propertyAddress || null;
+    if (data.propertyValue !== undefined) updateData.property_value = data.propertyValue || null;
 
     const { data: updatedListing, error } = await supabase
       .from('listings')

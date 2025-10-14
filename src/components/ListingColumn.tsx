@@ -166,6 +166,16 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
                             </Badge>
                           )}
                         </div>
+                        {listing.propertyAddress && (
+                          <p className="text-xs text-foreground font-medium mb-1 truncate" title={listing.propertyAddress}>
+                            📍 {listing.propertyAddress}
+                          </p>
+                        )}
+                        {listing.propertyValue && (
+                          <p className="text-xs text-green-600 dark:text-green-400 font-semibold mb-1">
+                            💰 R$ {listing.propertyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {new Date(listing.listingDate).toLocaleDateString('pt-BR')}
                         </p>
