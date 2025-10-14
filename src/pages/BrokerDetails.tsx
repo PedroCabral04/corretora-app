@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
 import { useClients } from '@/contexts/ClientsContext';
 import { useListings } from '@/contexts/ListingsContext';
@@ -35,6 +36,7 @@ const BrokerDetails = () => {
   const { brokerId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { getBrokerById } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
@@ -53,6 +55,9 @@ const BrokerDetails = () => {
   const { expenses, createExpense, updateExpense, deleteExpense, getExpensesByBrokerId } = useExpenses();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
+
+  // Verificar se o usuário logado é o próprio corretor visualizando sua página
+  const isOwnProfile = user?.role === 'broker' && brokerFromStore?.email?.toLowerCase() === user?.email.toLowerCase();
 
   const [brokerData, setBrokerData] = useState(() => ({
     id: brokerId,
@@ -596,28 +601,34 @@ const BrokerDetails = () => {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumbs */}
-        <Breadcrumbs 
-          items={[
-            { label: "Corretores", href: "/" },
-            { label: brokerData.name || "Detalhes" }
-          ]} 
-          className="mb-6"
-        />
+        {!isOwnProfile && (
+          <Breadcrumbs 
+            items={[
+              { label: "Corretores", href: "/brokers" },
+              { label: brokerData.name || "Detalhes" }
+            ]} 
+            className="mb-6"
+          />
+        )}
         
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/")}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Voltar</span>
-            </Button>
+            {!isOwnProfile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/brokers")}
+                className="flex items-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Voltar</span>
+              </Button>
+            )}
             <div>
-              <h1 className="text-3xl font-bold text-foreground">{brokerData.name}</h1>
+              <h1 className="text-3xl font-bold text-foreground">
+                {isOwnProfile ? 'Meu Perfil' : brokerData.name}
+              </h1>
               <p className="text-muted-foreground">{brokerData.email} • {brokerData.phone} • CRECI {brokerData.creci}</p>
             </div>
           </div>

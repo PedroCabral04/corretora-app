@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { BrokerCard } from "@/components/BrokerCard";
 import { FilterBar } from "@/components/FilterBar";
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
 import { Plus, Search, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
 import { BrokerCardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
@@ -19,6 +20,7 @@ import { maskPhone, maskCRECI, validateEmail, validatePhone, validateRequired, g
 
 const Brokers = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { brokers, isLoading, createBroker, updateBroker, deleteBroker } = useBrokers();
   const { toast } = useToast();
   
@@ -62,6 +64,48 @@ const Brokers = () => {
     creci?: string;
   } | null>(null);
   const [brokerToDelete, setBrokerToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  // Redirecionar corretor para sua própria página de perfil
+  useEffect(() => {
+    const redirectBrokerToProfile = async () => {
+      if (!user || isLoading) return;
+      
+      // Se o usuário é um corretor (não gerente ou admin)
+      if (user.role === 'broker') {
+        // Buscar o registro de broker correspondente ao usuário por email
+        const userBroker = brokers.find(broker => 
+          broker.email?.toLowerCase() === user.email.toLowerCase()
+        );
+
+        if (userBroker) {
+          // Redirecionar para a página de perfil do corretor
+          navigate(`/broker/profile`, { replace: true });
+        } else {
+          // Se não existe registro de broker, criar um automaticamente
+          try {
+            await createBroker({
+              name: user.name,
+              email: user.email,
+              phone: '',
+              creci: ''
+            });
+            
+            // Redirecionar para a página de perfil
+            navigate(`/broker/profile`, { replace: true });
+          } catch (error) {
+            console.error('Erro ao criar registro de corretor:', error);
+            toast({
+              title: 'Erro',
+              description: 'Não foi possível criar seu perfil de corretor. Entre em contato com o administrador.',
+              variant: 'destructive'
+            });
+          }
+        }
+      }
+    };
+
+    redirectBrokerToProfile();
+  }, [user, isLoading, brokers, navigate, createBroker, toast]);
 
   const handleViewBrokerDetails = (brokerId: string) => {
     navigate(`/broker/${brokerId}`);
