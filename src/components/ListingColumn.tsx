@@ -64,9 +64,9 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
 
   const statusConfigs: Array<{ status: DetailedListingStatus; label: string; headerClass: string; countClass: string }> = [
     { status: 'Ativo', label: 'Ativas', headerClass: 'bg-emerald-500/10', countClass: 'text-emerald-600 dark:text-emerald-300' },
+    { status: 'Desativado', label: 'Desativadas', headerClass: 'bg-slate-500/10', countClass: 'text-slate-600 dark:text-slate-300' },
     { status: 'Moderação', label: 'Em moderação', headerClass: 'bg-amber-500/10', countClass: 'text-amber-600 dark:text-amber-300' },
-    { status: 'Vendido', label: 'Vendidas', headerClass: 'bg-blue-500/10', countClass: 'text-blue-600 dark:text-blue-300' },
-    { status: 'Desativado', label: 'Desativadas', headerClass: 'bg-slate-500/10', countClass: 'text-slate-600 dark:text-slate-300' }
+    { status: 'Vendido', label: 'Vendidas', headerClass: 'bg-blue-500/10', countClass: 'text-blue-600 dark:text-blue-300' }
   ];
 
   // Filtrar apenas captações detalhadas deste tipo
