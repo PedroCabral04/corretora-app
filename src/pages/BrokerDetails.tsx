@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
 import { useClients } from '@/contexts/ClientsContext';
-import { useListings } from '@/contexts/ListingsContext';
+import { useListings, DetailedListingStatus } from '@/contexts/ListingsContext';
 import { useSales } from '@/contexts/SalesContext';
 import { useMeetings } from '@/contexts/MeetingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
@@ -48,7 +48,9 @@ const BrokerDetails = () => {
     getListingsByBrokerId,
     getAggregateQuantity,
     updateAggregateQuantity,
-    getDetailedListingsByType
+    getDetailedListingsByType,
+    getStatusAggregateQuantity,
+    updateStatusAggregateQuantity
   } = useListings();
   const { sales, createSale, updateSale, deleteSale, getSalesByBrokerId } = useSales();
   const { meetings, createMeeting, updateMeeting, completeMeeting, deleteMeeting, getMeetingsByBrokerId } = useMeetings();
@@ -1034,6 +1036,33 @@ const BrokerDetails = () => {
                           title: "Erro", 
                           description: "Erro ao atualizar quantidade", 
                           variant: "destructive" 
+                        });
+                      }
+                    }}
+                    statusQuantities={{
+                      Ativo: getStatusAggregateQuantity(brokerId!, propertyType, 'Ativo'),
+                      Moderação: getStatusAggregateQuantity(brokerId!, propertyType, 'Moderação'),
+                      Vendido: getStatusAggregateQuantity(brokerId!, propertyType, 'Vendido'),
+                      Desativado: getStatusAggregateQuantity(brokerId!, propertyType, 'Desativado')
+                    }}
+                    onStatusQuantityChange={async (status: DetailedListingStatus, quantity) => {
+                      try {
+                        await updateStatusAggregateQuantity(brokerId!, propertyType, status, quantity);
+                        const statusLabels: Record<DetailedListingStatus, string> = {
+                          Ativo: 'ativas',
+                          Moderação: 'em moderação',
+                          Vendido: 'vendidas',
+                          Desativado: 'desativadas'
+                        };
+                        toast({
+                          title: "Sucesso",
+                          description: `Quantidade de captações ${statusLabels[status]} atualizada para ${quantity}`
+                        });
+                      } catch (error) {
+                        toast({
+                          title: "Erro",
+                          description: "Erro ao atualizar quantidade por status",
+                          variant: "destructive"
                         });
                       }
                     }}

@@ -156,6 +156,8 @@ describe('BrokerDetails - CRUD Operations', () => {
         getAggregateQuantity: vi.fn(),
         updateAggregateQuantity: vi.fn(),
         getDetailedListingsByType: vi.fn(),
+        getStatusAggregateQuantity: vi.fn().mockReturnValue(0),
+        updateStatusAggregateQuantity: vi.fn(),
       },
       sales: {
         sales: mockSales,

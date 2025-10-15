@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Home, Building2, Building, MapPin, TreePine } from 'lucide-react';
-import { Listing } from '@/contexts/ListingsContext';
+import { Plus, Edit, Trash2, Home, Building2, Building, MapPin, TreePine, Check, X, ChevronRight } from 'lucide-react';
+import { Listing, DetailedListingStatus } from '@/contexts/ListingsContext';
 import { formatDateBR } from '@/lib/utils';
 
 interface ListingColumnProps {
@@ -13,6 +13,8 @@ interface ListingColumnProps {
   listings: Listing[];
   aggregateQuantity: number;
   onQuantityChange: (quantity: number) => void;
+  statusQuantities: Record<DetailedListingStatus, number>;
+  onStatusQuantityChange: (status: DetailedListingStatus, quantity: number) => void;
   onAddDetailed: () => void;
   onEdit: (listing: Listing) => void;
   onDelete: (id: string) => void;
@@ -40,19 +42,102 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
   listings,
   aggregateQuantity,
   onQuantityChange,
+  statusQuantities,
+  onStatusQuantityChange,
   onAddDetailed,
   onEdit,
   onDelete,
 }) => {
   const [isEditingQuantity, setIsEditingQuantity] = useState(false);
   const [tempQuantity, setTempQuantity] = useState(aggregateQuantity.toString());
+  const [editingStatus, setEditingStatus] = useState<DetailedListingStatus | null>(null);
+  const [tempStatusQuantity, setTempStatusQuantity] = useState('0');
+  const [expandedSections, setExpandedSections] = useState<Record<DetailedListingStatus, boolean>>(() => ({
+    Ativo: false,
+    Moderação: false,
+    Vendido: false,
+    Desativado: false,
+  }));
 
   const Icon = propertyIcons[propertyType];
   const colorClass = propertyColors[propertyType];
 
+  const statusConfigs: Array<{ status: DetailedListingStatus; label: string; headerClass: string; countClass: string }> = [
+    { status: 'Ativo', label: 'Ativas', headerClass: 'bg-emerald-500/10', countClass: 'text-emerald-600 dark:text-emerald-300' },
+    { status: 'Moderação', label: 'Em moderação', headerClass: 'bg-amber-500/10', countClass: 'text-amber-600 dark:text-amber-300' },
+    { status: 'Vendido', label: 'Vendidas', headerClass: 'bg-blue-500/10', countClass: 'text-blue-600 dark:text-blue-300' },
+    { status: 'Desativado', label: 'Desativadas', headerClass: 'bg-slate-500/10', countClass: 'text-slate-600 dark:text-slate-300' }
+  ];
+
   // Filtrar apenas captações detalhadas deste tipo
   const detailedListings = listings.filter(
     l => l.propertyType === propertyType && !l.isAggregate
+  );
+
+  const listingsByStatus = statusConfigs.reduce<Record<DetailedListingStatus, Listing[]>>((acc, config) => {
+    acc[config.status] = [];
+    return acc;
+  }, {} as Record<DetailedListingStatus, Listing[]>);
+
+  detailedListings.forEach((listing) => {
+    const status = listing.status as DetailedListingStatus;
+    if (listingsByStatus[status]) {
+      listingsByStatus[status].push(listing);
+    }
+  });
+
+  const hasAnyListing = detailedListings.length > 0;
+
+  const renderListingCard = (listing: Listing) => (
+    <div
+      key={listing.id}
+      className="border rounded-lg p-3 space-y-2 hover:border-primary/50 transition-colors bg-card w-full"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {getStatusBadge(listing.status)}
+        </div>
+        <div className="flex gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onEdit(listing)}
+          >
+            <Edit className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onDelete(listing.id)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {listing.propertyAddress && (
+        <p className="text-xs text-foreground font-medium" title={listing.propertyAddress}>
+          📍 {listing.propertyAddress}
+        </p>
+      )}
+
+      {listing.propertyValue && (
+        <p className="text-xs text-green-600 dark:text-green-400 font-semibold">
+          💰 R$ {listing.propertyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{formatDateBR(listing.listingDate)}</span>
+        {listing.quantity > 1 && (
+          <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+            x{listing.quantity}
+          </Badge>
+        )}
+      </div>
+    </div>
   );
 
   // Calcular total de quantidades detalhadas ativas
@@ -77,6 +162,42 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
     }
   };
 
+  const startEditingStatusQuantity = (status: DetailedListingStatus) => {
+    setEditingStatus(status);
+    setTempStatusQuantity(String(statusQuantities[status] ?? 0));
+  };
+
+  const cancelStatusQuantity = () => {
+    setEditingStatus(null);
+    setTempStatusQuantity('0');
+  };
+
+  const confirmStatusQuantity = () => {
+    if (!editingStatus) return;
+    const parsed = Math.max(0, parseInt(tempStatusQuantity, 10) || 0);
+    if (parsed !== (statusQuantities[editingStatus] ?? 0)) {
+      onStatusQuantityChange(editingStatus, parsed);
+    }
+    cancelStatusQuantity();
+  };
+
+  const handleStatusQuantityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur(); // Trigger onBlur which will save
+    } else if (e.key === 'Escape') {
+      cancelStatusQuantity();
+    }
+  };
+
+  const handleStatusQuantityBlur = () => {
+    if (!editingStatus) return;
+    const parsed = Math.max(0, parseInt(tempStatusQuantity, 10) || 0);
+    if (parsed !== (statusQuantities[editingStatus] ?? 0)) {
+      onStatusQuantityChange(editingStatus, parsed);
+    }
+    cancelStatusQuantity();
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', label: string }> = {
       'Ativo': { variant: 'default', label: 'Ativo' },
@@ -86,6 +207,13 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
     };
     const config = variants[status] || variants['Ativo'];
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const toggleSection = (status: DetailedListingStatus) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [status]: !prev[status],
+    }));
   };
 
   return (
@@ -126,9 +254,9 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
             )}
           </div>
 
-          {detailedTotal > 0 && (
+          {expandedSections['Ativo'] && detailedTotal > 0 && (
             <div className="text-xs text-muted-foreground">
-              + {detailedTotal} detalhada{detailedTotal !== 1 ? 's' : ''}
+              {detailedTotal} cadastrada{detailedTotal !== 1 ? 's' : ''} no status ativo
             </div>
           )}
         </div>
@@ -145,76 +273,77 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
         </Button>
 
         {/* Lista de Captações Detalhadas */}
-        <div className="space-y-2">
-          {detailedListings.length > 0 ? (
-            <>
-              <div className="text-xs font-medium text-muted-foreground uppercase">
-                Captações Detalhadas ({detailedListings.length})
-              </div>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                {detailedListings.map((listing) => (
-                  <div
-                    key={listing.id}
-                    className="border rounded-lg p-3 space-y-2 hover:border-primary/50 transition-colors bg-card"
-                  >
-                    {/* Header: Status e Botões */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(listing.status)}
-                        {listing.quantity > 1 && (
-                          <Badge variant="outline" className="text-xs">
-                            x{listing.quantity}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => onEdit(listing)}
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => onDelete(listing.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
+        <div className="space-y-3">
+          {statusConfigs.map(({ status, label, headerClass, countClass }) => {
+            const statusListings = listingsByStatus[status] ?? [];
+            const manualQuantity = statusQuantities[status] ?? 0;
+            const detailedCount = statusListings.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            const isExpanded = expandedSections[status];
 
-                    {/* Endereço - Ocupa toda largura */}
-                    {listing.propertyAddress && (
-                      <p className="text-xs text-foreground font-medium" title={listing.propertyAddress}>
-                        📍 {listing.propertyAddress}
-                      </p>
-                    )}
-
-                    {/* Valor - Ocupa toda largura */}
-                    {listing.propertyValue && (
-                      <p className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                        💰 R$ {listing.propertyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    )}
-
-                    {/* Data */}
-                    <p className="text-xs text-muted-foreground">
-                      {formatDateBR(listing.listingDate)}
-                    </p>
+            return (
+              <div key={status} className="rounded-lg border border-border/60">
+                <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-t-lg ${headerClass}`}>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(status)}
+                      className="text-muted-foreground hover:text-foreground transition-transform"
+                      aria-label={`Alternar ${label}`}
+                    >
+                      <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    </button>
+                    <span className="text-sm font-semibold">{label}</span>
                   </div>
-                ))}
+                  {editingStatus === status ? (
+                    <Input
+                      type="number"
+                      min="0"
+                      value={tempStatusQuantity}
+                      onChange={(e) => setTempStatusQuantity(e.target.value)}
+                      onKeyDown={handleStatusQuantityKeyDown}
+                      onBlur={handleStatusQuantityBlur}
+                      className="h-7 w-16 px-2 text-right text-xs"
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => startEditingStatusQuantity(status)}
+                      className={`flex items-center gap-1 text-xs font-semibold ${countClass} hover:underline`}
+                    >
+                      <span>{manualQuantity}</span>
+                      <Edit className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                {isExpanded && detailedCount > 0 && (
+                  <div className="px-3 pt-2 text-[11px] text-muted-foreground">
+                    {detailedCount} cadastrada{detailedCount !== 1 ? 's' : ''}
+                  </div>
+                )}
+
+                {isExpanded && statusListings.length > 0 && (
+                  <div className="space-y-2 border-t px-3 py-2">
+                    {statusListings.map(renderListingCard)}
+                  </div>
+                )}
+
+                {isExpanded && statusListings.length === 0 && detailedCount === 0 && (
+                  <div className="border-t px-3 py-3 text-xs text-muted-foreground">
+                    Nenhuma captação cadastrada neste status
+                  </div>
+                )}
               </div>
-            </>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p className="text-sm">Nenhuma captação detalhada</p>
-            </div>
-          )}
+            );
+          })}
         </div>
+
+        {!hasAnyListing && (
+          <div className="text-center py-6 text-muted-foreground">
+            <p className="text-sm">Nenhuma captação detalhada</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
