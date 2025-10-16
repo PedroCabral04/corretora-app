@@ -38,7 +38,7 @@ const BrokerDetails = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { getBrokerById } = useBrokers();
+  const { getBrokerById, refreshBrokers } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
   const { 
     listings, 
@@ -80,8 +80,11 @@ const BrokerDetails = () => {
   // Filter clients for this broker
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
   const brokerListings = brokerId ? getListingsByBrokerId(brokerId) : [];
-  // Total de TODAS as captações (agregadas + detalhadas de todos os status)
-  const totalListingsCount = brokerListings.reduce((acc, listing) => {
+  // Total de TODAS as captações (manuais dos 4 status + detalhadas)
+  // Ignora registros antigos com status 'Agregado' (sistema antigo)
+  const totalListingsCount = brokerListings
+    .filter(listing => listing.status !== 'Agregado')
+    .reduce((acc, listing) => {
       const parsed = Number(listing.quantity);
       const quantity = Number.isFinite(parsed) ? parsed : 1;
       const safeQuantity = quantity >= 0 ? quantity : 0;
@@ -131,13 +134,15 @@ const BrokerDetails = () => {
         date: e.expenseDate
       })),
       totalSales: brokerSales.length,
-      totalListings: brokerListings.reduce((acc, listing) => {
-        const parsed = Number(listing.quantity);
-        const quantity = Number.isFinite(parsed) ? parsed : 1;
-        const safeQuantity = quantity >= 0 ? quantity : 0;
-        // Somar TODAS as captações (agregadas + detalhadas de todos os status)
-        return acc + safeQuantity;
-      }, 0),
+      totalListings: brokerListings
+        .filter(listing => listing.status !== 'Agregado')
+        .reduce((acc, listing) => {
+          const parsed = Number(listing.quantity);
+          const quantity = Number.isFinite(parsed) ? parsed : 1;
+          const safeQuantity = quantity >= 0 ? quantity : 0;
+          // Somar TODAS as captações (manuais dos 4 status + detalhadas)
+          return acc + safeQuantity;
+        }, 0),
       totalValue: brokerSales.reduce((sum, s) => sum + s.saleValue, 0),
       monthlyExpenses: brokerExpenses.reduce((sum, e) => sum + e.amount, 0)
     }));
@@ -275,6 +280,7 @@ const BrokerDetails = () => {
           propertyAddress: newListing.propertyAddress || undefined,
           propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
         });
+        await refreshBrokers();
         toast({ title: "Sucesso", description: "Captação atualizada com sucesso!" });
       } else {
         await createListing({
@@ -286,6 +292,7 @@ const BrokerDetails = () => {
           propertyAddress: newListing.propertyAddress || undefined,
           propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
         });
+        await refreshBrokers();
         toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
       }
 
@@ -328,6 +335,7 @@ const BrokerDetails = () => {
     if (confirm("Tem certeza que deseja excluir esta captação?")) {
       try {
         await deleteListing(id);
+        await refreshBrokers();
         toast({ title: "Sucesso", description: "Captação excluída com sucesso!" });
       } catch (error) {
         toast({
@@ -659,7 +667,7 @@ const BrokerDetails = () => {
             variant="success"
           />
           <MetricCard
-            title="Captações Ativas"
+            title="Captações"
             value={brokerData.totalListings}
             icon={Home}
             variant="info"
@@ -1041,6 +1049,7 @@ const BrokerDetails = () => {
                     onQuantityChange={async (quantity) => {
                       try {
                         await updateAggregateQuantity(brokerId!, propertyType, quantity);
+                        await refreshBrokers();
                         toast({ 
                           title: "Sucesso", 
                           description: `Quantidade de ${propertyType} atualizada para ${quantity}` 
@@ -1062,6 +1071,7 @@ const BrokerDetails = () => {
                     onStatusQuantityChange={async (status: DetailedListingStatus, quantity) => {
                       try {
                         await updateStatusAggregateQuantity(brokerId!, propertyType, status, quantity);
+                        await refreshBrokers();
                         const statusLabels: Record<DetailedListingStatus, string> = {
                           Ativo: 'ativas',
                           Moderação: 'em moderação',
