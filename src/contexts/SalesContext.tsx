@@ -149,15 +149,29 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
   const deleteSale = async (id: string) => {
     if (!user) throw new Error('Usuário não autenticado');
 
-    const { error } = await supabase
-      .from('sales')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) throw error;
-
+    // Guarda o estado anterior para reverter em caso de erro
+    const previousSales = [...sales];
+    
+    // Update otimista: remove da lista imediatamente
     setSales(prev => prev.filter(sale => sale.id !== id));
+
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        // Reverte o estado em caso de erro
+        setSales(previousSales);
+        throw error;
+      }
+    } catch (error) {
+      // Garante que o estado seja revertido mesmo em erros inesperados
+      setSales(previousSales);
+      throw error;
+    }
   };
 
   const getSalesByBrokerId = (brokerId: string) => sales.filter(s => s.brokerId === brokerId);

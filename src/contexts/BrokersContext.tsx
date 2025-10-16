@@ -60,7 +60,7 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
       // Buscar captações e vendas para calcular os totais dinamicamente
       const { data: listingsData } = await supabase
         .from('listings')
-        .select('broker_id, status')
+        .select('broker_id, status, quantity, is_aggregate')
         .eq('user_id', user.id);
 
       const { data: salesData } = await supabase
@@ -68,13 +68,32 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
         .select('broker_id, sale_value')
         .eq('user_id', user.id);
 
+      type ListingsSummaryRow = {
+        broker_id: string | null;
+        status: string | null;
+        quantity: number | null;
+        is_aggregate: boolean | null;
+      };
+
       // Calcular totais por corretor
-      const listingsByBroker = (listingsData || []).reduce((acc, listing) => {
-        if (!acc[listing.broker_id]) acc[listing.broker_id] = { active: 0, total: 0 };
-        acc[listing.broker_id].total += 1;
-        if (listing.status === 'Ativa') acc[listing.broker_id].active += 1;
+  const listingsSummary = (listingsData as unknown as ListingsSummaryRow[] | null) ?? [];
+      const listingsByBroker = listingsSummary.reduce((acc, listing) => {
+        const brokerId = listing.broker_id;
+        if (!brokerId) {
+          return acc;
+        }
+
+        if (!acc[brokerId]) acc[brokerId] = { total: 0 };
+
+        const parsedQuantity = Number(listing.quantity);
+        const quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 1;
+        const safeQuantity = quantity >= 0 ? quantity : 0;
+        
+        // Somar TODAS as captações (agregadas manuais + detalhadas de todos os status)
+        acc[brokerId].total += safeQuantity;
+        
         return acc;
-      }, {} as Record<string, { active: number; total: number }>);
+      }, {} as Record<string, { total: number }>);
 
       const salesByBroker = (salesData || []).reduce((acc, sale) => {
         if (!acc[sale.broker_id]) acc[sale.broker_id] = { count: 0, value: 0 };
@@ -84,7 +103,7 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
       }, {} as Record<string, { count: number; value: number }>);
 
       const mappedBrokers: Broker[] = (data || []).map(broker => {
-        const listings = listingsByBroker[broker.id] || { active: 0, total: 0 };
+        const listings = listingsByBroker[broker.id] || { total: 0 };
         const sales = salesByBroker[broker.id] || { count: 0, value: 0 };
 
         return {
@@ -94,7 +113,7 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
           phone: broker.phone || '',
           creci: broker.creci || '',
           totalSales: sales.count,
-          totalListings: listings.active, // Apenas captações ativas
+          totalListings: listings.total, // Total de TODAS as captações
           monthlyExpenses: Number(broker.monthly_expenses),
           totalValue: sales.value
         };
@@ -163,7 +182,7 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
   const updateBroker = async (id: string, data: Partial<Broker>) => {
     if (!user) throw new Error('Usuário não autenticado');
 
-    const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.email !== undefined) updateData.email = data.email || null;
     if (data.phone !== undefined) updateData.phone = data.phone || null;
