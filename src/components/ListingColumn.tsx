@@ -140,10 +140,17 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
     </div>
   );
 
-  // Calcular total de quantidades detalhadas ativas
-  const detailedTotal = detailedListings
+  // Calcular total de quantidades detalhadas ativas (para exibir separadamente)
+  const detailedActiveTotal = detailedListings
     .filter(l => l.status === 'Ativo')
     .reduce((sum, l) => sum + (l.quantity || 1), 0);
+
+  // Calcular total de TODAS as captações detalhadas (todos os status)
+  const detailedTotalAll = detailedListings
+    .reduce((sum, l) => sum + (l.quantity || 1), 0);
+
+  // Total combinado: agregado manual + todas as detalhadas
+  const totalQuantity = aggregateQuantity + detailedTotalAll;
 
   const handleQuantityBlur = () => {
     const newQuantity = parseInt(tempQuantity) || 0;
@@ -231,15 +238,22 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-muted-foreground">Quantidade Total:</span>
             {!isEditingQuantity ? (
-              <button
-                onClick={() => {
-                  setIsEditingQuantity(true);
-                  setTempQuantity(aggregateQuantity.toString());
-                }}
-                className="text-xl font-bold underline decoration-2 decoration-primary/30 hover:decoration-primary underline-offset-4 hover:text-primary transition-colors"
-              >
-                {aggregateQuantity}
-              </button>
+              <div className="flex flex-col items-end">
+                <button
+                  onClick={() => {
+                    setIsEditingQuantity(true);
+                    setTempQuantity(aggregateQuantity.toString());
+                  }}
+                  className="text-xl font-bold underline decoration-2 decoration-primary/30 hover:decoration-primary underline-offset-4 hover:text-primary transition-colors"
+                >
+                  {totalQuantity}
+                </button>
+                {detailedTotalAll > 0 && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {aggregateQuantity} manual + {detailedTotalAll} detalhada{detailedTotalAll !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
             ) : (
               <Input
                 type="number"
@@ -254,9 +268,9 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
             )}
           </div>
 
-          {expandedSections['Ativo'] && detailedTotal > 0 && (
+          {expandedSections['Ativo'] && detailedActiveTotal > 0 && (
             <div className="text-xs text-muted-foreground">
-              {detailedTotal} cadastrada{detailedTotal !== 1 ? 's' : ''} no status ativo
+              {detailedActiveTotal} cadastrada{detailedActiveTotal !== 1 ? 's' : ''} no status ativo
             </div>
           )}
         </div>

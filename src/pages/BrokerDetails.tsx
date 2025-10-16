@@ -79,7 +79,15 @@ const BrokerDetails = () => {
 
   // Filter clients for this broker
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
-
+  const brokerListings = brokerId ? getListingsByBrokerId(brokerId) : [];
+  // Total de TODAS as captações (agregadas + detalhadas de todos os status)
+  const totalListingsCount = brokerListings.reduce((acc, listing) => {
+      const parsed = Number(listing.quantity);
+      const quantity = Number.isFinite(parsed) ? parsed : 1;
+      const safeQuantity = quantity >= 0 ? quantity : 0;
+      return acc + safeQuantity;
+    }, 0);
+    
   // Carrega os dados dos contextos quando o brokerId ou os dados mudam
   useEffect(() => {
     if (!brokerId) return;
@@ -123,7 +131,13 @@ const BrokerDetails = () => {
         date: e.expenseDate
       })),
       totalSales: brokerSales.length,
-      totalListings: brokerListings.filter(l => l.status === 'Ativo').length,
+      totalListings: brokerListings.reduce((acc, listing) => {
+        const parsed = Number(listing.quantity);
+        const quantity = Number.isFinite(parsed) ? parsed : 1;
+        const safeQuantity = quantity >= 0 ? quantity : 0;
+        // Somar TODAS as captações (agregadas + detalhadas de todos os status)
+        return acc + safeQuantity;
+      }, 0),
       totalValue: brokerSales.reduce((sum, s) => sum + s.saleValue, 0),
       monthlyExpenses: brokerExpenses.reduce((sum, e) => sum + e.amount, 0)
     }));
