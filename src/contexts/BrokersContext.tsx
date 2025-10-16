@@ -83,13 +83,19 @@ export const BrokersProvider = ({ children }: ProvidersProps) => {
           return acc;
         }
 
+        // Ignorar registros antigos com status 'Agregado' (sistema antigo)
+        // Agora usamos apenas: Ativo, Desativado, Moderação, Vendido
+        if (listing.status === 'Agregado' && listing.is_aggregate === true) {
+          return acc;
+        }
+
         if (!acc[brokerId]) acc[brokerId] = { total: 0 };
 
         const parsedQuantity = Number(listing.quantity);
         const quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 1;
         const safeQuantity = quantity >= 0 ? quantity : 0;
         
-        // Somar TODAS as captações (agregadas manuais + detalhadas de todos os status)
+        // Somar TODAS as captações (manuais dos 4 status + detalhadas de todos os status)
         acc[brokerId].total += safeQuantity;
         
         return acc;

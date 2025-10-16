@@ -38,7 +38,7 @@ const BrokerDetails = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { getBrokerById } = useBrokers();
+  const { getBrokerById, refreshBrokers } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
   const { 
     listings, 
@@ -275,6 +275,7 @@ const BrokerDetails = () => {
           propertyAddress: newListing.propertyAddress || undefined,
           propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
         });
+        await refreshBrokers();
         toast({ title: "Sucesso", description: "Captação atualizada com sucesso!" });
       } else {
         await createListing({
@@ -286,6 +287,7 @@ const BrokerDetails = () => {
           propertyAddress: newListing.propertyAddress || undefined,
           propertyValue: newListing.propertyValue ? parseFloat(newListing.propertyValue) : undefined
         });
+        await refreshBrokers();
         toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
       }
 
@@ -328,6 +330,7 @@ const BrokerDetails = () => {
     if (confirm("Tem certeza que deseja excluir esta captação?")) {
       try {
         await deleteListing(id);
+        await refreshBrokers();
         toast({ title: "Sucesso", description: "Captação excluída com sucesso!" });
       } catch (error) {
         toast({
@@ -659,7 +662,7 @@ const BrokerDetails = () => {
             variant="success"
           />
           <MetricCard
-            title="Captações Ativas"
+            title="Captações"
             value={brokerData.totalListings}
             icon={Home}
             variant="info"
@@ -1041,6 +1044,7 @@ const BrokerDetails = () => {
                     onQuantityChange={async (quantity) => {
                       try {
                         await updateAggregateQuantity(brokerId!, propertyType, quantity);
+                        await refreshBrokers();
                         toast({ 
                           title: "Sucesso", 
                           description: `Quantidade de ${propertyType} atualizada para ${quantity}` 
@@ -1062,6 +1066,7 @@ const BrokerDetails = () => {
                     onStatusQuantityChange={async (status: DetailedListingStatus, quantity) => {
                       try {
                         await updateStatusAggregateQuantity(brokerId!, propertyType, status, quantity);
+                        await refreshBrokers();
                         const statusLabels: Record<DetailedListingStatus, string> = {
                           Ativo: 'ativas',
                           Moderação: 'em moderação',

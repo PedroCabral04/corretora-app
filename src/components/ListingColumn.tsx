@@ -149,13 +149,20 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
   const detailedTotalAll = detailedListings
     .reduce((sum, l) => sum + (l.quantity || 1), 0);
 
-  // Total combinado: agregado manual + todas as detalhadas
-  const totalQuantity = aggregateQuantity + detailedTotalAll;
+  // Calcular soma de TODAS as quantidades manuais (todos os status)
+  const totalManualQuantity = Object.values(statusQuantities).reduce((sum, qty) => sum + (qty || 0), 0);
+
+  // Total combinado: TODAS as quantidades manuais de todos os status + todas as detalhadas
+  const totalQuantity = totalManualQuantity + detailedTotalAll;
 
   const handleQuantityBlur = () => {
     const newQuantity = parseInt(tempQuantity) || 0;
-    if (newQuantity !== aggregateQuantity && newQuantity >= 0) {
-      onQuantityChange(newQuantity);
+    if (newQuantity !== totalManualQuantity && newQuantity >= 0) {
+      // Atualizar o contador manual de "Ativo" com a diferença
+      const currentActiveManual = statusQuantities['Ativo'] || 0;
+      const difference = newQuantity - totalManualQuantity;
+      const newActiveManual = Math.max(0, currentActiveManual + difference);
+      onStatusQuantityChange('Ativo', newActiveManual);
     }
     setIsEditingQuantity(false);
   };
@@ -164,7 +171,7 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
     if (e.key === 'Enter') {
       handleQuantityBlur();
     } else if (e.key === 'Escape') {
-      setTempQuantity(aggregateQuantity.toString());
+      setTempQuantity(totalManualQuantity.toString());
       setIsEditingQuantity(false);
     }
   };
@@ -242,29 +249,35 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
                 <button
                   onClick={() => {
                     setIsEditingQuantity(true);
-                    setTempQuantity(aggregateQuantity.toString());
+                    setTempQuantity(totalManualQuantity.toString());
                   }}
                   className="text-xl font-bold underline decoration-2 decoration-primary/30 hover:decoration-primary underline-offset-4 hover:text-primary transition-colors"
                 >
                   {totalQuantity}
                 </button>
-                {detailedTotalAll > 0 && (
+                {(totalManualQuantity > 0 || detailedTotalAll > 0) && (
                   <span className="text-[10px] text-muted-foreground">
-                    {aggregateQuantity} manual + {detailedTotalAll} detalhada{detailedTotalAll !== 1 ? 's' : ''}
+                    {totalManualQuantity} manual + {detailedTotalAll} detalhada{detailedTotalAll !== 1 ? 's' : ''}
                   </span>
                 )}
               </div>
             ) : (
-              <Input
-                type="number"
-                min="0"
-                value={tempQuantity}
-                onChange={(e) => setTempQuantity(e.target.value)}
-                onBlur={handleQuantityBlur}
-                onKeyDown={handleQuantityKeyDown}
-                className="w-20 h-8 text-right"
-                autoFocus
-              />
+              <div className="flex flex-col items-end gap-1">
+                <Input
+                  type="number"
+                  min="0"
+                  value={tempQuantity}
+                  onChange={(e) => setTempQuantity(e.target.value)}
+                  onBlur={handleQuantityBlur}
+                  onKeyDown={handleQuantityKeyDown}
+                  className="w-20 h-8 text-right"
+                  autoFocus
+                  placeholder="Manual"
+                />
+                <span className="text-[9px] text-muted-foreground">
+                  + {detailedTotalAll} detalhada{detailedTotalAll !== 1 ? 's' : ''}
+                </span>
+              </div>
             )}
           </div>
 
@@ -292,6 +305,7 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
             const statusListings = listingsByStatus[status] ?? [];
             const manualQuantity = statusQuantities[status] ?? 0;
             const detailedCount = statusListings.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            const totalStatusQuantity = manualQuantity + detailedCount;
             const isExpanded = expandedSections[status];
 
             return (
@@ -308,30 +322,37 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
                     </button>
                     <span className="text-sm font-semibold">{label}</span>
                   </div>
-                  {editingStatus === status ? (
-                    <Input
-                      type="number"
-                      min="0"
-                      value={tempStatusQuantity}
-                      onChange={(e) => setTempStatusQuantity(e.target.value)}
-                      onKeyDown={handleStatusQuantityKeyDown}
-                      onBlur={handleStatusQuantityBlur}
-                      className="h-7 w-16 px-2 text-right text-xs"
-                      autoFocus
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => startEditingStatusQuantity(status)}
-                      className={`flex items-center gap-1 text-xs font-semibold ${countClass} hover:underline`}
-                    >
-                      <span>{manualQuantity}</span>
-                      <Edit className="h-3 w-3" />
-                    </button>
-                  )}
+                  <div className="flex flex-col items-end gap-0.5">
+                    {editingStatus === status ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        value={tempStatusQuantity}
+                        onChange={(e) => setTempStatusQuantity(e.target.value)}
+                        onKeyDown={handleStatusQuantityKeyDown}
+                        onBlur={handleStatusQuantityBlur}
+                        className="h-7 w-16 px-2 text-right text-xs"
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startEditingStatusQuantity(status)}
+                        className={`flex items-center gap-1 text-xs font-semibold ${countClass} hover:underline`}
+                      >
+                        <span>{totalStatusQuantity}</span>
+                        <Edit className="h-3 w-3" />
+                      </button>
+                    )}
+                    {detailedCount > 0 && editingStatus !== status && (
+                      <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+                        {manualQuantity} manual + {detailedCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {isExpanded && detailedCount > 0 && (
+                {isExpanded && statusListings.length > 0 && (
                   <div className="px-3 pt-2 text-[11px] text-muted-foreground">
                     {detailedCount} cadastrada{detailedCount !== 1 ? 's' : ''}
                   </div>
@@ -352,12 +373,6 @@ export const ListingColumn: React.FC<ListingColumnProps> = ({
             );
           })}
         </div>
-
-        {!hasAnyListing && (
-          <div className="text-center py-6 text-muted-foreground">
-            <p className="text-sm">Nenhuma captação detalhada</p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

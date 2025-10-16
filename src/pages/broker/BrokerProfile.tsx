@@ -419,6 +419,7 @@ const BrokerProfile = () => {
                             propertyAddress: '',
                             propertyValue: 0
                           });
+                          await refreshBrokers();
                           setNewListing({ propertyType: "Apartamento", quantity: "1", status: "Ativo", date: new Date().toISOString().split('T')[0], propertyAddress: "", propertyValue: "" });
                           setListingsModalOpen(false);
                           toast({ title: "Sucesso", description: "Captação adicionada!" });
@@ -444,6 +445,7 @@ const BrokerProfile = () => {
                       onQuantityChange={async (quantity) => {
                         try {
                           await updateAggregateQuantity(brokerId, propertyType, quantity);
+                          await refreshBrokers();
                           toast({ 
                             title: "Sucesso", 
                             description: `Quantidade de ${propertyType} atualizada para ${quantity}` 
@@ -466,6 +468,7 @@ const BrokerProfile = () => {
                       onStatusQuantityChange={async (status: DetailedListingStatus, quantity) => {
                         try {
                           await updateStatusAggregateQuantity(brokerId, propertyType, status, quantity);
+                          await refreshBrokers();
                           const statusLabels: Record<DetailedListingStatus, string> = {
                             Ativo: 'ativas',
                             Moderação: 'em moderação',
@@ -504,6 +507,7 @@ const BrokerProfile = () => {
                       onDelete={async (id) => {
                         try {
                           await deleteListing(id);
+                          await refreshBrokers();
                           toast({ title: "Sucesso", description: "Captação removida!" });
                         } catch (error) {
                           toast({ title: "Erro", description: "Erro ao remover captação", variant: "destructive" });
