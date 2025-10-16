@@ -80,8 +80,11 @@ const BrokerDetails = () => {
   // Filter clients for this broker
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
   const brokerListings = brokerId ? getListingsByBrokerId(brokerId) : [];
-  // Total de TODAS as captações (agregadas + detalhadas de todos os status)
-  const totalListingsCount = brokerListings.reduce((acc, listing) => {
+  // Total de TODAS as captações (manuais dos 4 status + detalhadas)
+  // Ignora registros antigos com status 'Agregado' (sistema antigo)
+  const totalListingsCount = brokerListings
+    .filter(listing => listing.status !== 'Agregado')
+    .reduce((acc, listing) => {
       const parsed = Number(listing.quantity);
       const quantity = Number.isFinite(parsed) ? parsed : 1;
       const safeQuantity = quantity >= 0 ? quantity : 0;
@@ -131,13 +134,15 @@ const BrokerDetails = () => {
         date: e.expenseDate
       })),
       totalSales: brokerSales.length,
-      totalListings: brokerListings.reduce((acc, listing) => {
-        const parsed = Number(listing.quantity);
-        const quantity = Number.isFinite(parsed) ? parsed : 1;
-        const safeQuantity = quantity >= 0 ? quantity : 0;
-        // Somar TODAS as captações (agregadas + detalhadas de todos os status)
-        return acc + safeQuantity;
-      }, 0),
+      totalListings: brokerListings
+        .filter(listing => listing.status !== 'Agregado')
+        .reduce((acc, listing) => {
+          const parsed = Number(listing.quantity);
+          const quantity = Number.isFinite(parsed) ? parsed : 1;
+          const safeQuantity = quantity >= 0 ? quantity : 0;
+          // Somar TODAS as captações (manuais dos 4 status + detalhadas)
+          return acc + safeQuantity;
+        }, 0),
       totalValue: brokerSales.reduce((sum, s) => sum + s.saleValue, 0),
       monthlyExpenses: brokerExpenses.reduce((sum, e) => sum + e.amount, 0)
     }));
