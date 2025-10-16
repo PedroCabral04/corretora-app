@@ -78,7 +78,7 @@ describe('BrokerDetails - CRUD Operations', () => {
       id: 'listing-1',
       brokerId: 'broker-123',
       propertyType: 'Apartamento' as const,
-      quantity: 2,
+      quantity: 1,
       status: 'Ativo' as const,
       listingDate: '2024-01-15',
       propertyAddress: 'Rua Teste, 123',
@@ -217,7 +217,7 @@ describe('BrokerDetails - CRUD Operations', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('metric-Vendas no Ano')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-Captações Ativas')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-Captações')).toHaveTextContent('1');
       });
     });
 
