@@ -72,7 +72,21 @@ const Dashboard = () => {
   // Metrics
   const totalBrokers = brokers.length;
   const totalSales = filteredData.sales.length;
-  const totalListings = filteredData.listings.filter(l => l.status === 'Ativo').length;
+  
+  // Contar TODAS as captações (mesma lógica do BrokersContext)
+  const totalListings = filteredData.listings
+    .filter(l => {
+      // Ignorar registros antigos com status 'Agregado' (sistema antigo)
+      if (l.status === 'Agregado' && l.isAggregate === true) {
+        return false;
+      }
+      return true;
+    })
+    .reduce((sum, listing) => {
+      const quantity = listing.quantity || 1;
+      return sum + (quantity >= 0 ? quantity : 0);
+    }, 0);
+  
   const totalValue = filteredData.sales.reduce((sum, sale) => sum + (sale.saleValue || 0), 0);
   const totalExpenses = filteredData.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const netProfit = totalValue - totalExpenses;
@@ -313,7 +327,7 @@ const Dashboard = () => {
               variant="success" 
             />
             <MetricCard 
-              title="Captações Ativas" 
+              title="Captações" 
               value={totalListings} 
               icon={Home} 
               variant="info" 

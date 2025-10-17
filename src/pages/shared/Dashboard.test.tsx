@@ -286,7 +286,7 @@ describe("Dashboard page", () => {
     };
 
     expect(getMetricValue("Vendas no Período")).toBe("2");
-    expect(getMetricValue("Captações Ativas")).toBe("1");
+    expect(getMetricValue("Captações")).toBe("2");
     expect(getMetricValue("Valor Total Vendido")).toBe(currencyFormatter.format(300000));
     expect(getMetricValue("Total de Gastos")).toBe(currencyFormatter.format(50000));
     expect(getMetricValue("Lucro Líquido")).toBe(currencyFormatter.format(250000));
