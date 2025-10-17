@@ -359,6 +359,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          broker_id: string | null
           created_at: string
           description: string | null
           due_date: string
@@ -370,6 +371,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          broker_id?: string | null
           created_at?: string
           description?: string | null
           due_date: string
@@ -381,6 +383,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          broker_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string
@@ -391,7 +394,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {

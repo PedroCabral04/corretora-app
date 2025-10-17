@@ -22,6 +22,7 @@ import { useListings, DetailedListingStatus } from '@/contexts/ListingsContext';
 import { useSales } from '@/contexts/SalesContext';
 import { useMeetings } from '@/contexts/MeetingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
+import { TaskBoard } from '@/components/tasks/TaskBoard';
 import {
   ArrowLeft,
   TrendingUp,
@@ -695,12 +696,13 @@ const BrokerDetails = () => {
 
         {/* Tabs com Detalhes */}
         <Tabs defaultValue="clients" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="clients">Clientes</TabsTrigger>
             <TabsTrigger value="sales">Vendas</TabsTrigger>
             <TabsTrigger value="listings">Captações</TabsTrigger>
             <TabsTrigger value="meetings">Reuniões</TabsTrigger>
             <TabsTrigger value="expenses">Gastos</TabsTrigger>
+            <TabsTrigger value="tasks">Tarefas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="clients">
@@ -1449,6 +1451,23 @@ const BrokerDetails = () => {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tasks">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tarefas do Corretor</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <TaskBoard
+                  brokerId={brokerId}
+                  title="Kanban de Tarefas"
+                  description="Planeje e acompanhe as atividades específicas deste corretor"
+                  emptyStateTitle="Nenhuma tarefa cadastrada"
+                  emptyStateDescription="Adicione uma nova tarefa para organizar o fluxo de trabalho do corretor"
+                />
               </CardContent>
             </Card>
           </TabsContent>

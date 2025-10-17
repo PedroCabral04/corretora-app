@@ -12,6 +12,7 @@ export interface Task {
   status: TaskStatus;
   createdAt: string;
   priority: "Baixa" | "Média" | "Alta";
+  brokerId?: string | null;
 }
 
 interface TasksContextType {
@@ -23,6 +24,7 @@ interface TasksContextType {
   updateTask: (id: string, data: Partial<Task>, opts?: { optimistic?: boolean }) => Promise<Task>;
   deleteTask: (id: string, opts?: { optimistic?: boolean }) => Promise<void>;
   getTaskById: (id: string) => Task | undefined;
+  getTasksByBrokerId: (brokerId?: string | null) => Task[];
 }
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
@@ -65,7 +67,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         dueDate: task.due_date,
         status: task.status as TaskStatus,
         createdAt: task.created_at.split('T')[0], // Convert to date string
-        priority: task.priority as "Baixa" | "Média" | "Alta"
+        priority: task.priority as "Baixa" | "Média" | "Alta",
+        brokerId: task.broker_id
       }));
 
       setTasks(mappedTasks);
@@ -91,7 +94,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       description: data.description || null,
       due_date: data.dueDate,
       status: data.status,
-      priority: data.priority
+      priority: data.priority,
+      broker_id: data.brokerId ?? null
     };
 
     const { data: newTask, error } = await supabase
@@ -109,7 +113,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       dueDate: newTask.due_date,
       status: newTask.status as TaskStatus,
       createdAt: newTask.created_at.split('T')[0],
-      priority: newTask.priority as "Baixa" | "Média" | "Alta"
+      priority: newTask.priority as "Baixa" | "Média" | "Alta",
+      brokerId: newTask.broker_id
     };
 
     setTasks(prev => [mappedTask, ...prev]);
@@ -131,7 +136,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       dueDate: data.dueDate,
       status: data.status,
       createdAt: new Date().toISOString().split('T')[0],
-      priority: data.priority
+      priority: data.priority,
+      brokerId: data.brokerId ?? null
     };
 
     const prev = tasks;
@@ -144,7 +150,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         description: data.description || null,
         due_date: data.dueDate,
         status: data.status,
-        priority: data.priority
+        priority: data.priority,
+        broker_id: data.brokerId ?? null
       };
 
       const { data: newTask, error } = await supabase
@@ -162,7 +169,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         dueDate: newTask.due_date,
         status: newTask.status as TaskStatus,
         createdAt: newTask.created_at.split('T')[0],
-        priority: newTask.priority as "Baixa" | "Média" | "Alta"
+        priority: newTask.priority as "Baixa" | "Média" | "Alta",
+        brokerId: newTask.broker_id
       };
 
       // Replace temp with real task
@@ -183,7 +191,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     if (data.description !== undefined) updateData.description = data.description || null;
     if (data.dueDate !== undefined) updateData.due_date = data.dueDate;
     if (data.status !== undefined) updateData.status = data.status;
-    if (data.priority !== undefined) updateData.priority = data.priority;
+  if (data.priority !== undefined) updateData.priority = data.priority;
+  if (data.brokerId !== undefined) updateData.broker_id = data.brokerId ?? null;
 
     const { data: updatedTask, error } = await supabase
       .from('tasks')
@@ -202,7 +211,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       dueDate: updatedTask.due_date,
       status: updatedTask.status as TaskStatus,
       createdAt: updatedTask.created_at.split('T')[0],
-      priority: updatedTask.priority as "Baixa" | "Média" | "Alta"
+      priority: updatedTask.priority as "Baixa" | "Média" | "Alta",
+      brokerId: updatedTask.broker_id
     };
 
     setTasks(prev => prev.map(task => task.id === id ? mappedTask : task));
@@ -223,7 +233,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
       if (data.description !== undefined) updateData.description = data.description || null;
       if (data.dueDate !== undefined) updateData.due_date = data.dueDate;
       if (data.status !== undefined) updateData.status = data.status;
-      if (data.priority !== undefined) updateData.priority = data.priority;
+  if (data.priority !== undefined) updateData.priority = data.priority;
+  if (data.brokerId !== undefined) updateData.broker_id = data.brokerId ?? null;
 
       const { data: updatedTask, error } = await supabase
         .from('tasks')
@@ -242,7 +253,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
         dueDate: updatedTask.due_date,
         status: updatedTask.status as TaskStatus,
         createdAt: updatedTask.created_at.split('T')[0],
-        priority: updatedTask.priority as "Baixa" | "Média" | "Alta"
+        priority: updatedTask.priority as "Baixa" | "Média" | "Alta",
+        brokerId: updatedTask.broker_id
       };
 
       setTasks(prevState => prevState.map(task => task.id === id ? mappedTask : task));
@@ -290,6 +302,15 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
   };
 
   const getTaskById = (id: string) => tasks.find(t => t.id === id);
+  const getTasksByBrokerId = (brokerId?: string | null) => {
+    if (brokerId === null) {
+      return tasks.filter(task => !task.brokerId);
+    }
+    if (!brokerId) {
+      return tasks;
+    }
+    return tasks.filter(task => task.brokerId === brokerId);
+  };
 
   const value: TasksContextType = {
     tasks,
@@ -297,7 +318,8 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
     createTask: createTaskOptimistic,
     updateTask: updateTaskOptimistic,
     deleteTask: deleteTaskOptimistic,
-    getTaskById
+    getTaskById,
+    getTasksByBrokerId
   };
 
   return (
