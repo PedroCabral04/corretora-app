@@ -5,6 +5,7 @@ import { useTasks } from './TasksContext';
 import { useGoals } from './GoalsContext';
 import { useEvents } from './EventsContext';
 import { useMeetings } from './MeetingsContext';
+import { useBrokers } from './BrokersContext';
 
 export type NotificationType = 'task' | 'goal' | 'event' | 'meeting';
 export type NotificationPriority = 'low' | 'medium' | 'high';
@@ -56,6 +57,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
   const { goals } = useGoals();
   const { events } = useEvents();
   const { meetings } = useMeetings();
+  const { brokers } = useBrokers();
 
   const fetchNotifications = async () => {
     if (!user) {
@@ -249,22 +251,26 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
       let shouldNotify = false;
       let message = '';
       let priority: NotificationPriority = 'low';
+      const responsibleBroker = task.brokerId ? brokers.find(broker => broker.id === task.brokerId) : undefined;
+      const taskPrefix = responsibleBroker
+        ? `A tarefa "${task.title}" do corretor ${responsibleBroker.name}`
+        : `A tarefa "${task.title}"`;
 
       if (dueDate < now) {
         shouldNotify = true;
-        message = `A tarefa "${task.title}" está atrasada!`;
+        message = `${taskPrefix} está atrasada!`;
         priority = 'high';
       } else if (dueDate <= oneDayFromNow) {
         shouldNotify = true;
-        message = `A tarefa "${task.title}" vence em menos de 24 horas!`;
+        message = `${taskPrefix} vence em menos de 24 horas!`;
         priority = 'high';
       } else if (dueDate <= threeDaysFromNow) {
         shouldNotify = true;
-        message = `A tarefa "${task.title}" vence em 3 dias.`;
+        message = `${taskPrefix} vence em 3 dias.`;
         priority = 'medium';
       } else if (dueDate <= sevenDaysFromNow) {
         shouldNotify = true;
-        message = `A tarefa "${task.title}" vence em 7 dias.`;
+        message = `${taskPrefix} vence em 7 dias.`;
         priority = 'low';
       }
 
@@ -415,7 +421,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
         }
       }
     }
-  }, [user, tasks, goals, events, meetings, notifications]);
+  }, [user, tasks, goals, events, meetings, notifications, brokers]);
 
   // Check for deadline notifications every 5 minutes
   useEffect(() => {

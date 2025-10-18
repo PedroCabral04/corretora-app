@@ -43,6 +43,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
+const TRASH_DROP_PREFIX = "task-trash-";
+
 interface TaskBoardProps {
   brokerId?: string | null;
   title?: string;
@@ -60,6 +62,8 @@ interface KanbanColumnProps {
   onAddTask: (status: TaskStatus) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
+  trashDroppableId: string;
+  isDragging: boolean;
 }
 
 interface SortableTaskProps {
@@ -67,6 +71,27 @@ interface SortableTaskProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
 }
+
+const TrashDropZone = ({ droppableId, isDragging }: { droppableId: string; isDragging: boolean }) => {
+  const { setNodeRef, isOver } = useDroppable({ id: droppableId });
+  const visible = isDragging || isOver;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "mt-auto flex items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 text-xs font-medium transition-all duration-200",
+        visible ? "opacity-100 py-2 pt-4" : "opacity-0 py-0",
+        visible ? "border-destructive/60 bg-destructive/10 text-destructive" : "border-transparent text-transparent",
+        visible ? "pointer-events-auto" : "pointer-events-none",
+      )}
+      aria-hidden={!visible && !isOver}
+    >
+      <Trash2 className="h-4 w-4" />
+      <span>Arraste aqui para excluir</span>
+    </div>
+  );
+};
 
 const SortableTask = ({ task, onEdit, onDelete }: SortableTaskProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
@@ -156,14 +181,14 @@ const SortableTask = ({ task, onEdit, onDelete }: SortableTaskProps) => {
   );
 };
 
-const KanbanColumn = ({ title, status, tasks, icon: Icon, onAddTask, onEditTask, onDeleteTask }: KanbanColumnProps) => {
+const KanbanColumn = ({ title, status, tasks, icon: Icon, onAddTask, onEditTask, onDeleteTask, trashDroppableId, isDragging }: KanbanColumnProps) => {
   const { setNodeRef } = useDroppable({ id: status });
 
   return (
     <div
       ref={setNodeRef}
       data-droppable-id={status}
-      className="bg-muted/30 rounded-lg p-4 min-h-[520px] w-80 sm:w-72 md:w-80 lg:w-80 mobile:w-[85vw]"
+      className="bg-muted/30 rounded-lg p-4 min-h-[520px] w-80 sm:w-72 md:w-80 lg:w-80 mobile:w-[85vw] flex flex-col"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
@@ -179,10 +204,13 @@ const KanbanColumn = ({ title, status, tasks, icon: Icon, onAddTask, onEditTask,
       </div>
 
       <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2">
-          {tasks.map((task) => (
-            <SortableTask key={task.id} task={task} onEdit={onEditTask} onDelete={onDeleteTask} />
-          ))}
+        <div className="flex h-full flex-col">
+          <div className="space-y-2 flex-1">
+            {tasks.map((task) => (
+              <SortableTask key={task.id} task={task} onEdit={onEditTask} onDelete={onDeleteTask} />
+            ))}
+          </div>
+          <TrashDropZone droppableId={trashDroppableId} isDragging={isDragging} />
         </div>
       </SortableContext>
     </div>
@@ -228,6 +256,8 @@ export const TaskBoard = ({
     { status: "Concluída", title: "Concluída", icon: CheckCircle },
   ];
 
+  const getTrashZoneId = (status: TaskStatus) => `${TRASH_DROP_PREFIX}${status.replace(/\s+/g, "-")}`;
+
   const boardTasks = useMemo(() => {
     if (brokerId === undefined) {
       return tasks;
@@ -261,10 +291,16 @@ export const TaskBoard = ({
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
 
-    if (!over) return;
+    if (!over) {
+      return;
+    }
 
     const activeTaskId = active.id as string;
-    const overTaskId = over.id as string;
+    const overTaskId = String(over.id);
+
+    if (overTaskId.startsWith(TRASH_DROP_PREFIX)) {
+      return;
+    }
 
     const columnMatch = columns.find((col) => col.status === overTaskId);
     if (columnMatch) {
@@ -284,7 +320,23 @@ export const TaskBoard = ({
     if (!over) return;
 
     const activeTaskId = active.id as string;
-    const overTaskId = over.id as string;
+    const overTaskId = String(over.id);
+
+    if (overTaskId.startsWith(TRASH_DROP_PREFIX)) {
+      const removedTask = boardTasks.find((task) => task.id === activeTaskId);
+      removeTask(activeTaskId, { optimistic: true })
+        .then(() => {
+          toast({
+            title: "Tarefa excluída",
+            description: removedTask ? `"${removedTask.title}" foi removida.` : "A tarefa foi removida.",
+          });
+        })
+        .catch((err) => {
+          console.error(err);
+          toast({ title: "Erro", description: "Não foi possível excluir a tarefa", variant: "destructive" });
+        });
+      return;
+    }
 
     const targetColumn = columns.find((col) => col.status === overTaskId);
     if (targetColumn) {
@@ -299,7 +351,7 @@ export const TaskBoard = ({
       return;
     }
 
-    const targetTask = filteredTasks.find((t) => t.id === overTaskId);
+  const targetTask = filteredTasks.find((t) => t.id === overTaskId);
     if (targetTask) {
       updateTask(activeTaskId, { status: targetTask.status }, { optimistic: true })
         .then(() => {
@@ -564,6 +616,8 @@ export const TaskBoard = ({
                   onAddTask={openModal}
                   onEditTask={editTask}
                   onDeleteTask={deleteTask}
+                  trashDroppableId={getTrashZoneId(column.status)}
+                  isDragging={Boolean(activeId)}
                 />
               ))}
             </div>
