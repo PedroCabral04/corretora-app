@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { isOwnerEmail } from "@/config/adminConfig";
 
 const roleLabels = {
   admin: { label: 'Admin', variant: 'destructive' as const, color: 'bg-red-500' },
@@ -97,7 +98,9 @@ export const Navigation = () => {
         { path: "/tasks", label: "Tarefas", icon: CheckSquare },
         { path: "/agenda", label: "Agenda", icon: CalendarIcon },
         { path: "/goals", label: "Metas", icon: Target },
-        ...(hasPermission('manage_users') ? [{ path: "/users", label: "Usuários", icon: Shield }] : []),
+        ...(hasPermission('manage_users') && isOwnerEmail(user?.email)
+          ? [{ path: "/admin", label: "Admin", icon: Shield }]
+          : []),
       ];
 
   return (

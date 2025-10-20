@@ -16,6 +16,8 @@ import { ClientsProvider } from "@/contexts/ClientsContext";
 import { GoalsProvider } from "@/contexts/GoalsContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminProvider } from "@/contexts/AdminContext";
+import { OWNER_EMAILS } from "@/config/adminConfig";
 import Index from "./pages/Index";
 import ManagerDashboard from "./pages/shared/Dashboard";
 import BrokerDashboard from "./pages/broker/BrokerDashboard";
@@ -23,7 +25,6 @@ import Brokers from "./pages/manager/Brokers";
 import BrokerDetails from "./pages/BrokerDetails";
 import Tasks from "./pages/shared/Tasks";
 import Agenda from "./pages/shared/Agenda";
-import Users from "./pages/manager/Users";
 import Goals from "./pages/shared/Goals";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -31,6 +32,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "@/contexts/AuthContext";
+import AdminPanel from "./pages/admin/AdminPanel";
 
 const queryClient = new QueryClient();
 
@@ -49,7 +51,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
-        <BrokersProvider>
+        <AdminProvider>
+          <BrokersProvider>
           <EventsProvider>
             <TasksProvider>
               <SalesProvider>
@@ -98,9 +101,12 @@ const App = () => (
                   <Agenda />
                 </ProtectedRoute>
               } />
-              <Route path="/users" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <Users />
+              <Route path="/admin" element={
+                <ProtectedRoute
+                  allowedRoles={['admin']}
+                  allowedEmails={OWNER_EMAILS.length > 0 ? OWNER_EMAILS : undefined}
+                >
+                  <AdminPanel />
                 </ProtectedRoute>
               } />
               <Route path="/goals" element={
@@ -123,6 +129,7 @@ const App = () => (
       </TasksProvider>
     </EventsProvider>
   </BrokersProvider>
+</AdminProvider>
 </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
