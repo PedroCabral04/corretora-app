@@ -6,8 +6,9 @@ import { useGoals } from './GoalsContext';
 import { useEvents } from './EventsContext';
 import { useMeetings } from './MeetingsContext';
 import { useBrokers } from './BrokersContext';
+import { usePerformance } from './PerformanceContext';
 
-export type NotificationType = 'task' | 'goal' | 'event' | 'meeting';
+export type NotificationType = 'task' | 'goal' | 'event' | 'meeting' | 'performance' | 'challenge';
 export type NotificationPriority = 'low' | 'medium' | 'high';
 
 export interface Notification {
@@ -58,6 +59,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
   const { events } = useEvents();
   const { meetings } = useMeetings();
   const { brokers } = useBrokers();
+  const { challenges, getChallengesByBrokerId } = usePerformance();
 
   const fetchNotifications = async () => {
     if (!user) {
@@ -421,7 +423,88 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
         }
       }
     }
-  }, [user, tasks, goals, events, meetings, notifications, brokers]);
+
+    // Check performance challenges
+    const userChallenges = user?.role === 'broker'
+      ? getChallengesByBrokerId(user.id)
+      : challenges;
+
+    for (const challenge of userChallenges) {
+      if (challenge.status === 'completed') continue;
+      
+      // Check for existing notification in the last 24 hours
+      const existingNotification = notifications.find(
+        n => n.relatedId === challenge.id &&
+             n.type === 'challenge' &&
+             new Date(n.createdAt) > twentyFourHoursAgo
+      );
+
+      if (existingNotification) continue;
+
+      const endDate = new Date(challenge.endDate);
+      const responsibleBroker = brokers.find(broker => broker.id === challenge.brokerId);
+      const challengePrefix = responsibleBroker
+        ? `O desafio "${challenge.title}" do corretor ${responsibleBroker.name}`
+        : `O desafio "${challenge.title}"`;
+
+      let shouldNotify = false;
+      let message = '';
+      let priority: NotificationPriority = 'low';
+
+      // Check if challenge is approaching deadline
+      if (endDate < now) {
+        shouldNotify = true;
+        message = `${challengePrefix} expirou! Progresso: ${Math.round(challenge.totalProgress || 0)}%`;
+        priority = 'high';
+      } else if (endDate <= oneDayFromNow) {
+        shouldNotify = true;
+        message = `${challengePrefix} expira em menos de 24 horas! Progresso: ${Math.round(challenge.totalProgress || 0)}%`;
+        priority = 'high';
+      } else if (endDate <= threeDaysFromNow) {
+        shouldNotify = true;
+        message = `${challengePrefix} expira em 3 dias. Progresso: ${Math.round(challenge.totalProgress || 0)}%`;
+        priority = 'medium';
+      }
+
+      // Check if challenge is close to completion
+      if (!shouldNotify && (challenge.totalProgress || 0) >= 80) {
+        shouldNotify = true;
+        message = `${challengePrefix} está quase concluído! Progresso: ${Math.round(challenge.totalProgress || 0)}%`;
+        priority = 'medium';
+      }
+
+      // Check if challenge was just completed
+      if (challenge.totalProgress && challenge.totalProgress >= 100) {
+        const completedNotification = notifications.find(
+          n => n.relatedId === challenge.id &&
+               n.type === 'performance' &&
+               n.title.includes('concluído') &&
+               new Date(n.createdAt) > twentyFourHoursAgo
+        );
+
+        if (!completedNotification) {
+          shouldNotify = true;
+          message = `🎉 ${challengePrefix} foi concluído com sucesso! Progresso: 100%`;
+          priority = 'high';
+        }
+      }
+
+      if (shouldNotify) {
+        try {
+          const notificationType = message.includes('concluído') ? 'performance' : 'challenge';
+          await createNotification({
+            title: message.includes('concluído') ? 'Desafio Concluído!' : 'Desafio de Desempenho',
+            message,
+            type: notificationType,
+            relatedId: challenge.id,
+            priority,
+          });
+        } catch (error) {
+          console.error('Error creating challenge notification:', error);
+        }
+      }
+    }
+  }, [user, tasks, goals, events, meetings, notifications, brokers, challenges, getChallengesByBrokerId]);
 
   // Check for deadline notifications every 5 minutes
   useEffect(() => {

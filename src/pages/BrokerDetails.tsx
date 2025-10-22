@@ -22,7 +22,10 @@ import { useListings, DetailedListingStatus } from '@/contexts/ListingsContext';
 import { useSales } from '@/contexts/SalesContext';
 import { useMeetings } from '@/contexts/MeetingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
+import { usePerformance } from '@/contexts/PerformanceContext';
 import { TaskBoard } from '@/components/tasks/TaskBoard';
+import { PerformanceCard } from '@/components/performance/PerformanceCard';
+import { ChallengeForm } from '@/components/performance/ChallengeForm';
 import {
   ArrowLeft,
   TrendingUp,
@@ -30,7 +33,9 @@ import {
   DollarSign,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  Trophy,
+  Target
 } from "lucide-react";
 
 const BrokerDetails = () => {
@@ -56,6 +61,14 @@ const BrokerDetails = () => {
   const { sales, createSale, updateSale, deleteSale, getSalesByBrokerId } = useSales();
   const { meetings, createMeeting, updateMeeting, completeMeeting, deleteMeeting, getMeetingsByBrokerId } = useMeetings();
   const { expenses, createExpense, updateExpense, deleteExpense, getExpensesByBrokerId } = useExpenses();
+  const {
+    challenges,
+    createChallenge,
+    updateChallenge,
+    deleteChallenge,
+    getChallengesByBrokerId,
+    refreshChallenges
+  } = usePerformance();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
 
@@ -81,6 +94,7 @@ const BrokerDetails = () => {
   // Filter clients for this broker
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
   const brokerListings = brokerId ? getListingsByBrokerId(brokerId) : [];
+  const brokerChallenges = brokerId ? getChallengesByBrokerId(brokerId) : [];
   // Total de TODAS as captações (manuais dos 4 status + detalhadas)
   // Ignora registros antigos com status 'Agregado' (sistema antigo)
   const totalListingsCount = brokerListings
@@ -157,6 +171,8 @@ const BrokerDetails = () => {
   const [expensesModalOpen, setExpensesModalOpen] = useState(false);
   const [clientsModalOpen, setClientsModalOpen] = useState(false);
   const [selectedPropertyType, setSelectedPropertyType] = useState<'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara' | null>(null);
+  const [challengeModalOpen, setChallengeModalOpen] = useState(false);
+  const [editingChallengeId, setEditingChallengeId] = useState<string | null>(null);
 
   // Form states
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
@@ -696,13 +712,14 @@ const BrokerDetails = () => {
 
         {/* Tabs com Detalhes */}
         <Tabs defaultValue="clients" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="clients">Clientes</TabsTrigger>
             <TabsTrigger value="sales">Vendas</TabsTrigger>
             <TabsTrigger value="listings">Captações</TabsTrigger>
             <TabsTrigger value="meetings">Reuniões</TabsTrigger>
             <TabsTrigger value="expenses">Gastos</TabsTrigger>
             <TabsTrigger value="tasks">Tarefas</TabsTrigger>
+            <TabsTrigger value="performance">Desempenho</TabsTrigger>
           </TabsList>
 
           <TabsContent value="clients">
@@ -1468,6 +1485,114 @@ const BrokerDetails = () => {
                   emptyStateTitle="Nenhuma tarefa cadastrada"
                   emptyStateDescription="Adicione uma nova tarefa para organizar o fluxo de trabalho do corretor"
                 />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="performance">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  Desafios de Desempenho
+                </CardTitle>
+                <Dialog open={challengeModalOpen} onOpenChange={(open) => {
+                  setChallengeModalOpen(open);
+                  if (!open) {
+                    setEditingChallengeId(null);
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Desafio
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingChallengeId ? "Editar Desafio" : "Criar Novo Desafio"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <ChallengeForm
+                      challenge={editingChallengeId ? challenges.find(c => c.id === editingChallengeId) : undefined}
+                      autoBrokerId={brokerId!}
+                      onSubmit={async (data) => {
+                        try {
+                          if (editingChallengeId) {
+                            await updateChallenge(editingChallengeId, {
+                              title: data.title,
+                              description: data.description,
+                              startDate: data.startDate,
+                              endDate: data.endDate,
+                              status: 'active'
+                            });
+                            toast({ title: "Sucesso", description: "Desafio atualizado com sucesso!" });
+                          } else {
+                            await createChallenge(data);
+                            toast({ title: "Sucesso", description: "Desafio criado com sucesso!" });
+                          }
+                          setChallengeModalOpen(false);
+                          setEditingChallengeId(null);
+                          refreshChallenges();
+                        } catch (error) {
+                          toast({
+                            title: "Erro",
+                            description: error instanceof Error ? error.message : "Erro ao salvar desafio",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                      onCancel={() => {
+                        setChallengeModalOpen(false);
+                        setEditingChallengeId(null);
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                {brokerChallenges.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Nenhum desafio encontrado</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Crie um novo desafio para acompanhar o desempenho deste corretor.
+                    </p>
+                    <Button onClick={() => setChallengeModalOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Desafio
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {brokerChallenges.map(challenge => (
+                      <PerformanceCard
+                        key={challenge.id}
+                        challenge={challenge}
+                        showDetails={true}
+                        onEdit={() => {
+                          setEditingChallengeId(challenge.id);
+                          setChallengeModalOpen(true);
+                        }}
+                        onDelete={async () => {
+                          if (confirm("Tem certeza que deseja excluir este desafio?")) {
+                            try {
+                              await deleteChallenge(challenge.id);
+                              toast({ title: "Sucesso", description: "Desafio excluído com sucesso!" });
+                              refreshChallenges();
+                            } catch (error) {
+                              toast({
+                                title: "Erro ao excluir desafio",
+                                variant: "destructive"
+                              });
+                            }
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

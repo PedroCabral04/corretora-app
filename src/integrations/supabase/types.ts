@@ -515,6 +515,129 @@ export type Database = {
         }
         Relationships: []
       }
+      goals: {
+        Row: {
+          id: string
+          user_id: string
+          broker_id: string
+          title: string
+          description: string | null
+          goal_type: string
+          target_value: number
+          current_value: number
+          start_date: string
+          end_date: string
+          status: string
+          priority: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          broker_id: string
+          title: string
+          description?: string | null
+          goal_type: string
+          target_value: number
+          current_value?: number
+          start_date: string
+          end_date: string
+          status?: string
+          priority?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          broker_id?: string
+          title?: string
+          description?: string | null
+          goal_type?: string
+          target_value?: number
+          current_value?: number
+          start_date?: string
+          end_date?: string
+          status?: string
+          priority?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      performance_challenges: {
+        Row: {
+          id: string
+          broker_id: string
+          title: string
+          description: string | null
+          start_date: string
+          end_date: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          broker_id: string
+          title: string
+          description?: string | null
+          start_date: string
+          end_date: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          broker_id?: string
+          title?: string
+          description?: string | null
+          start_date?: string
+          end_date?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      performance_metrics: {
+        Row: {
+          id: string
+          challenge_id: string
+          type: string
+          target_value: number
+          current_value: number
+          unit: string
+          color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          challenge_id: string
+          type: string
+          target_value: number
+          current_value?: number
+          unit: string
+          color: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          challenge_id?: string
+          type?: string
+          target_value?: number
+          current_value?: number
+          unit?: string
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
