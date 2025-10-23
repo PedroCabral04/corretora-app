@@ -156,38 +156,67 @@ export const PerformanceTargetsPieChart = ({
     : 0;
 
   return (
-    <Card className={className}>
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <p className="text-xs text-muted-foreground">Compare os valores planejados com o desempenho atual de cada indicador.</p>
+    <Card className={`${className} border-0 shadow-lg bg-gradient-to-br from-card to-card/80`}>
+      <CardHeader className="space-y-2 pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{title}</CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="text-xs text-muted-foreground">Tempo real</span>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">Acompanhe o progresso dos indicadores de forma visual e interativa.</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {chartData.length === 0 ? (
           <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
             Nenhum indicador cadastrado para este desafio.
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+          <div className="flex flex-col lg:flex-row gap-8 items-center justify-center">
             {/* Left vertical legend (vertical on the left side) */}
-            <div className="flex flex-col gap-2 w-48 pr-4">
+            <div className="flex flex-col gap-3 w-52 pr-4 justify-center">
               {slicesForPie.map((s: any, idx: number) => (
                 <button
                   key={`legend-left-${idx}`}
                   onMouseEnter={() => setHoveredIndex(idx)}
                   onMouseLeave={() => setHoveredIndex(null)}
-                  className="w-full flex items-center gap-3 text-sm text-muted-foreground px-1 py-2 rounded-md hover:bg-muted/10 focus:outline-none"
+                  className={`w-full flex items-center gap-3 text-sm px-3 py-2 rounded-lg transition-all duration-200 hover:scale-[1.02] focus:outline-none ${
+                    hoveredIndex === idx
+                      ? 'bg-gradient-to-r from-muted/30 to-muted/20 shadow-md border border-border/50'
+                      : 'hover:bg-muted/10'
+                  }`}
                   type="button"
                 >
-                  <span style={{ width: 14, height: 14, background: s.color, borderRadius: 999 }} className="inline-block flex-shrink-0" />
-                  <div className="flex flex-col text-left">
-                    <span className="font-medium text-foreground">{s.name}</span>
-                    <span className="text-xs text-muted-foreground">{s.target}</span>
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      background: `linear-gradient(135deg, ${s.color}, ${s.color}dd)`,
+                      borderRadius: 999,
+                      boxShadow: hoveredIndex === idx ? `0 0 12px ${s.color}40` : 'none'
+                    }}
+                    className="inline-block flex-shrink-0 transition-all duration-200"
+                  />
+                  <div className="flex flex-col text-left flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">{s.name}</span>
+                      {hoveredIndex === idx && (
+                        <span
+                          className="text-xs px-2 py-0.5 rounded-full text-white font-semibold"
+                          style={{ backgroundColor: s.color }}
+                        >
+                          {Math.round(s.percent)}%
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">{s.current} de {s.target}</span>
                   </div>
                 </button>
               ))}
             </div>
             {/* Gráfico de Pizza */}
-            <div ref={containerRef} className="relative flex-1 w-full h-[320px] min-w-[280px]">
+            <div ref={containerRef} className="relative flex-1 w-full h-[340px] min-w-[300px]">
               {/* Custom SVG donut chart */}
               <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(300, size.w)} ${Math.max(300, size.h)}`} preserveAspectRatio="xMidYMid meet">
                 {(() => {
@@ -293,10 +322,10 @@ export const PerformanceTargetsPieChart = ({
 
                       {/* Center hole / label */}
                       <circle cx={Math.max(size.w, 300) / 2} cy={Math.max(size.h, 300) / 2} r={innerRadius - 6} fill="var(--card)" />
-                      <foreignObject x={cx - innerRadius + 6} y={cy - 18} width={(innerRadius - 6) * 2} height={36}>
+                      <foreignObject x={cx - innerRadius + 6} y={cy - 22} width={(innerRadius - 6) * 2} height={44}>
                         <div className="flex items-center justify-center text-center">
                           <div>
-                            <div className="text-sm font-bold" style={{ color: COLOR_PALETTE[0] }}>{Math.round(totalProgress)}%</div>
+                            <div className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{Math.round(totalProgress)}%</div>
                             <div className="text-xs text-muted-foreground">Progresso Total</div>
                           </div>
                         </div>

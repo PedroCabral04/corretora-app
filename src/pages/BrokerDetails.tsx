@@ -44,6 +44,17 @@ import {
   Edit
 } from "lucide-react";
 
+const COLOR_PALETTE = [
+  "#8b5cf6",
+  "#ec4899",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#14b8a6",
+  "#6366f1",
+];
+
 type ChallengeTargetForm = {
   id?: string;
   metricType: PerformanceMetricType;
@@ -1274,54 +1285,63 @@ useEffect(() => {
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="overview" className="space-y-4">
-                  <Card>
-                    <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="flex flex-col gap-1">
-                        <CardTitle className="text-base font-medium">Desafio em destaque</CardTitle>
-                        <p className="text-xs text-muted-foreground">
-                          Selecione para analisar o progresso por indicador.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Select
-                          value={selectedChallengeId ?? firstDisplayChallengeId ?? ""}
-                          onValueChange={(value) => setSelectedChallengeId(value)}
-                        >
-                          <SelectTrigger className="w-[240px]">
-                            <SelectValue placeholder="Selecione um desafio" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {displayChallenges.map((challenge) => (
-                              <SelectItem key={challenge.id} value={challenge.id}>
-                                {challenge.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {selectedChallenge && (
-                          <Badge variant="outline" className="text-xs">
-                            {Math.round(selectedChallenge.overallProgress)}% concluído
-                          </Badge>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <PerformanceTargetsPieChart
-                        targets={getModifiedTargets(selectedChallenge)}
-                        title={selectedChallenge ? `Progresso de "${selectedChallenge.title}"` : "Progresso dos indicadores"}
-                      />
+                <TabsContent value="overview" className="space-y-6">
+                  {/* Header do Dashboard */}
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-xl font-semibold">Dashboard de Desempenho</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Acompanhe em tempo real o progresso dos indicadores do desafio selecionado.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Select
+                        value={selectedChallengeId ?? firstDisplayChallengeId ?? ""}
+                        onValueChange={(value) => setSelectedChallengeId(value)}
+                      >
+                        <SelectTrigger className="w-[280px]">
+                          <SelectValue placeholder="Selecione um desafio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {displayChallenges.map((challenge) => (
+                            <SelectItem key={challenge.id} value={challenge.id}>
+                              {challenge.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {selectedChallenge ? (
+                    <>
+                      {/* Cards de Métricas Principais */}
                       
-                      {selectedChallenge && (
-                        <div className="mt-6">
+
+                      {/* Grid Principal com Gráfico e Painel de Controle */}
+                      <div className="grid gap-6 lg:grid-cols-3">
+                        {/* Coluna Esquerda - Gráfico Principal */}
+                        <div className="lg:col-span-2">
+                          <PerformanceTargetsPieChart
+                            targets={getModifiedTargets(selectedChallenge)}
+                            title={selectedChallenge ? `Progresso de "${selectedChallenge.title}"` : "Progresso dos indicadores"}
+                          />
+                        </div>
+                        
+                        {/* Coluna Direita - Painel de Controle */}
+                        <div className="space-y-4">
                           <PerformanceControlPanel
                             targets={selectedChallenge.targets}
                             onTargetChange={(targetId, newValue) => handleSliderChange(selectedChallenge.id, targetId, newValue)}
                           />
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </div>
+                    </>
+                  ) : (
+                    <Card className="p-10 text-center text-sm text-muted-foreground">
+                      <p>Selecione um desafio para visualizar o dashboard de desempenho.</p>
+                    </Card>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="history">
