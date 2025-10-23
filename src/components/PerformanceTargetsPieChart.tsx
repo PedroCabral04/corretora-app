@@ -1,13 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-  TooltipProps,
-} from "recharts";
+// Using a custom SVG implementation instead of Recharts for full control of animation and layout
 import { VerticalProgressBar } from "@/components/VerticalProgressBar";
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -69,30 +61,23 @@ const mapTargetsToChartData = (targets: PerformanceTarget[]): ChartDatum[] =>
       };
     });
 
-const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
-  if (!active || !payload || payload.length === 0) {
-    return null;
-  }
-
-  const entry = payload[0].payload as ChartDatum;
-
-  return (
-    <div className="flex flex-col gap-1 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
-      <div className="font-semibold text-foreground">{entry.name}</div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
-          <span className="block font-medium text-foreground">Planejado</span>
-          <span className="text-muted-foreground">{Math.round(entry.target)}</span>
-        </div>
-        <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
-          <span className="block font-medium text-foreground">Atual</span>
-          <span className="text-muted-foreground">{Math.round(entry.current)}</span>
-        </div>
+// Simple hover tooltip (we'll render it manually on mouse events)
+const CustomTooltip = ({ name, target, current, percent }: { name: string; target: number; current: number; percent: number }) => (
+  <div className="flex flex-col gap-1 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
+    <div className="font-semibold text-foreground">{name}</div>
+    <div className="grid grid-cols-2 gap-2">
+      <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
+        <span className="block font-medium text-foreground">Planejado</span>
+        <span className="text-muted-foreground">{Math.round(target)}</span>
       </div>
-      <div className="text-[11px] text-muted-foreground">Progresso: {Math.round(entry.percent)}%</div>
+      <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
+        <span className="block font-medium text-foreground">Atual</span>
+        <span className="text-muted-foreground">{Math.round(current)}</span>
+      </div>
     </div>
-  );
-};
+    <div className="text-[11px] text-muted-foreground">Progresso: {Math.round(percent)}%</div>
+  </div>
+);
 
 export const PerformanceTargetsPieChart = ({
   targets,
@@ -136,6 +121,35 @@ export const PerformanceTargetsPieChart = ({
     return () => clearTimeout(t);
   }, []);
 
+  // container measurement for responsive SVG
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ w: 300, h: 300 });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setSize({ w: el.clientWidth || 300, h: el.clientHeight || 300 });
+    update();
+    const RO = (window as any).ResizeObserver ?? null;
+    let observer: any = null;
+    if (RO) {
+      observer = new RO(() => update());
+      observer.observe(el);
+    } else {
+      window.addEventListener("resize", update);
+    }
+    return () => {
+      if (observer) observer.disconnect();
+      else window.removeEventListener("resize", update);
+    };
+  }, [containerRef.current]);
+
+  // determine if layout is column (matches Tailwind's lg breakpoint used above)
+  const isColumnLayout = size.w < 1024;
+
+  // hover / tooltip state
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [tooltip, setTooltip] = useState<{ visible: boolean; left: number; top: number; entry?: any }>({ visible: false, left: 0, top: 0 });
+
   // Calcular o progresso total médio de todos os indicadores
   const totalProgress = chartData.length > 0
     ? chartData.reduce((sum, item) => sum + item.percent, 0) / chartData.length
@@ -153,50 +167,44 @@ export const PerformanceTargetsPieChart = ({
             Nenhum indicador cadastrado para este desafio.
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-6 items-center justify-center">
+          <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+            {/* Left vertical legend (vertical on the left side) */}
+            <div className="flex flex-col gap-2 w-48 pr-4">
+              {slicesForPie.map((s: any, idx: number) => (
+                <button
+                  key={`legend-left-${idx}`}
+                  onMouseEnter={() => setHoveredIndex(idx)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  className="w-full flex items-center gap-3 text-sm text-muted-foreground px-1 py-2 rounded-md hover:bg-muted/10 focus:outline-none"
+                  type="button"
+                >
+                  <span style={{ width: 14, height: 14, background: s.color, borderRadius: 999 }} className="inline-block flex-shrink-0" />
+                  <div className="flex flex-col text-left">
+                    <span className="font-medium text-foreground">{s.name}</span>
+                    <span className="text-xs text-muted-foreground">{s.target}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
             {/* Gráfico de Pizza */}
-            <div className="flex-1 w-full h-[320px] min-w-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  {/* Background muted pie: slice angles are proportional to target amounts */}
-                  <Pie
-                    data={slicesForPie}
-                    dataKey="target"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={120}
-                    paddingAngle={3}
-                    cornerRadius={6}
-                    labelLine={false}
-                    label={false}
-                  >
-                    {slicesForPie.map((entry: any) => (
-                      <Cell
-                        key={`bg-${entry.name}`}
-                        fill={entry.color}
-                        fillOpacity={0.08}
-                        stroke="transparent"
-                      />
-                    ))}
-                  </Pie>
+            <div ref={containerRef} className="relative flex-1 w-full h-[320px] min-w-[280px]">
+              {/* Custom SVG donut chart */}
+              <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(300, size.w)} ${Math.max(300, size.h)}`} preserveAspectRatio="xMidYMid meet">
+                {(() => {
+                  const outerRadius = Math.min(size.w, size.h) / 2 * 0.9;
+                  const innerRadius = outerRadius * 0.5;
+                  const cx = Math.max(size.w, 300) / 2;
+                  const cy = Math.max(size.h, 300) / 2;
 
-                  {/* Foreground manual overlay: compute slice arcs from slicesForPie and render clipped fill paths */}
-                  <g className="chart-overlay" transform="translate(0,0)">
-                    {/* We'll render SVG slices using the same radii as the Pie above */}
-                    {(() => {
-                      const outerRadius = 120;
-                      const innerRadius = 60;
-                      const cx = 150; // ResponsiveContainer will scale, but these are used only as relative positions inside viewBox; recharts centers at 50%/50%
-                      const cy = 150;
+                  const total = slicesForPie.reduce((s: number, it: any) => s + (it.target || 0), 0) || 1;
+                  let angleCursor = 0;
 
-                      const total = slicesForPie.reduce((s: number, it: any) => s + (it.target || 0), 0) || 1;
-                      let angleCursor = 0;
-
-                      return slicesForPie.map((entry: any, idx: number) => {
-                        const angleStart = (angleCursor / total) * 360;
-                        const angleEnd = ((angleCursor + entry.target) / total) * 360;
+                  return (
+                    <g>
+                      {/* Background slices (muted) */}
+                      {slicesForPie.map((entry: any, idx: number) => {
+                        const a0 = (angleCursor / total) * 360;
+                        const a1 = ((angleCursor + entry.target) / total) * 360;
                         angleCursor += entry.target;
 
                         const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDeg: number) => {
@@ -207,60 +215,122 @@ export const PerformanceTargetsPieChart = ({
                           };
                         };
 
-                        const largeArc = angleEnd - angleStart <= 180 ? 0 : 1;
-                        const outerStart = polarToCartesian(cx, cy, outerRadius, angleEnd);
-                        const outerEnd = polarToCartesian(cx, cy, outerRadius, angleStart);
-                        const innerStart = polarToCartesian(cx, cy, innerRadius, angleStart);
-                        const innerEnd = polarToCartesian(cx, cy, innerRadius, angleEnd);
+                        const largeArc = a1 - a0 <= 180 ? 0 : 1;
+                        const outerStart = polarToCartesian(cx, cy, outerRadius, a1);
+                        const outerEnd = polarToCartesian(cx, cy, outerRadius, a0);
+                        const innerStart = polarToCartesian(cx, cy, innerRadius, a0);
+                        const innerEnd = polarToCartesian(cx, cy, innerRadius, a1);
 
-                        const path = `M ${outerStart.x} ${outerStart.y} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${outerEnd.x} ${outerEnd.y} L ${innerStart.x} ${innerStart.y} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerEnd.x} ${innerEnd.y} Z`;
+                        const d = `M ${outerStart.x} ${outerStart.y} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${outerEnd.x} ${outerEnd.y} L ${innerStart.x} ${innerStart.y} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerEnd.x} ${innerEnd.y} Z`;
 
-                        const pct = Math.min(Math.max((entry.percent ?? 0) / 100, 0), 1);
-                        const boxSize = outerRadius * 2;
-                        const rectHeight = mounted ? boxSize * pct : 0;
-                        const rectY = cy + outerRadius - rectHeight;
-                        const id = `${uniqueRef.current}-${idx}`;
+                        return <path key={`bg-${idx}`} d={d} fill={entry.color} opacity={0.08} stroke="transparent" />;
+                      })}
 
-                        return (
-                          <g key={`overlay-${idx}`}>
-                            <defs>
-                              <clipPath id={`clip-${id}`}>
-                                <rect x={cx - outerRadius} y={rectY} width={boxSize} height={rectHeight} style={{ transition: "all 700ms cubic-bezier(.2,.8,.2,1)" }} />
-                              </clipPath>
-                            </defs>
+                      {/* Foreground fills (clipped vertically per-slice) */}
+                      {(() => {
+                        const elements: any[] = [];
+                        let cursor = 0;
+                        const tot = slicesForPie.reduce((s: number, it: any) => s + (it.target || 0), 0) || 1;
+                        for (let i = 0; i < slicesForPie.length; i++) {
+                          const entry = slicesForPie[i];
+                          const a0 = (cursor / tot) * 360;
+                          const a1 = ((cursor + entry.target) / tot) * 360;
+                          cursor += entry.target;
 
-                            <g clipPath={`url(#clip-${id})`}>
-                              <path d={path} fill={entry.color} opacity={0.95} stroke="rgba(255,255,255,0.6)" strokeWidth={1} />
+                          const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDeg: number) => {
+                            const angleInRad = ((angleInDeg - 90) * Math.PI) / 180.0;
+                            return {
+                              x: centerX + radius * Math.cos(angleInRad),
+                              y: centerY + radius * Math.sin(angleInRad),
+                            };
+                          };
+
+                          const largeArc = a1 - a0 <= 180 ? 0 : 1;
+                          const outerStart = polarToCartesian(cx, cy, outerRadius, a1);
+                          const outerEnd = polarToCartesian(cx, cy, outerRadius, a0);
+                          const innerStart = polarToCartesian(cx, cy, innerRadius, a0);
+                          const innerEnd = polarToCartesian(cx, cy, innerRadius, a1);
+
+                          const d = `M ${outerStart.x} ${outerStart.y} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${outerEnd.x} ${outerEnd.y} L ${innerStart.x} ${innerStart.y} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerEnd.x} ${innerEnd.y} Z`;
+
+                          const pct = Math.min(Math.max((entry.percent ?? 0) / 100, 0), 1);
+                          const boxSize = outerRadius * 2;
+                          const rectHeight = mounted ? boxSize * pct : 0;
+                          const rectY = cy + outerRadius - rectHeight;
+                          const id = `${uniqueRef.current}-svg-${i}`;
+
+                          const isHovered = hoveredIndex === i;
+
+                          elements.push(
+                            <g key={`fg-${i}`}
+                              onMouseEnter={(e) => {
+                                setHoveredIndex(i);
+                                const rect = (e.target as SVGElement).closest('svg')?.getBoundingClientRect();
+                                if (rect) {
+                                  setTooltip({ visible: true, left: e.clientX - rect.left + 8, top: e.clientY - rect.top + 8, entry });
+                                }
+                              }}
+                              onMouseMove={(e) => {
+                                const rect = (e.target as SVGElement).closest('svg')?.getBoundingClientRect();
+                                if (rect) setTooltip({ visible: true, left: e.clientX - rect.left + 8, top: e.clientY - rect.top + 8, entry });
+                              }}
+                              onMouseLeave={() => { setHoveredIndex(null); setTooltip({ visible: false, left: 0, top: 0 }); }}
+                            >
+                              <defs>
+                                <clipPath id={`clip-${id}`}>
+                                  <rect x={cx - outerRadius} y={rectY} width={boxSize} height={rectHeight} style={{ transition: "all 700ms cubic-bezier(.2,.8,.2,1)" }} />
+                                </clipPath>
+                              </defs>
+                              <g clipPath={`url(#clip-${id})`}>
+                                <path d={d} fill={entry.color} opacity={isHovered ? 1 : 0.95} stroke={isHovered ? 'rgba(0,0,0,0.08)' : "rgba(255,255,255,0.6)"} strokeWidth={isHovered ? 2 : 1} style={{ filter: isHovered ? 'drop-shadow(0 6px 18px rgba(0,0,0,0.12))' : undefined, transition: 'all 180ms ease' }} />
+                              </g>
                             </g>
-                          </g>
-                        );
-                      });
-                    })()}
-                  </g>
+                          );
+                        }
 
-                  <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: "none" }} />
-                  <Legend
-                    verticalAlign="bottom"
-                    iconType="circle"
-                    formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+                        return elements;
+                      })()}
+
+                      {/* Center hole / label */}
+                      <circle cx={Math.max(size.w, 300) / 2} cy={Math.max(size.h, 300) / 2} r={innerRadius - 6} fill="var(--card)" />
+                      <foreignObject x={cx - innerRadius + 6} y={cy - 18} width={(innerRadius - 6) * 2} height={36}>
+                        <div className="flex items-center justify-center text-center">
+                          <div>
+                            <div className="text-sm font-bold" style={{ color: COLOR_PALETTE[0] }}>{Math.round(totalProgress)}%</div>
+                            <div className="text-xs text-muted-foreground">Progresso Total</div>
+                          </div>
+                        </div>
+                      </foreignObject>
+                    </g>
+                  );
+                })()}
+              </svg>
+
+              {/* Small-screen legend removed in favor of vertical left legend */}
+
+              {/* Tooltip absolute inside svg container */}
+              {tooltip.visible && tooltip.entry && (
+                <div style={{ position: 'absolute', left: tooltip.left, top: tooltip.top, pointerEvents: 'none' }}>
+                  <CustomTooltip name={tooltip.entry.name} target={tooltip.entry.target} current={tooltip.entry.current} percent={tooltip.entry.percent} />
+                </div>
+              )}
             </div>
             
-            {/* Barra de Progresso Vertical - Layout Responsivo */}
-            <div className="lg:w-32 w-full lg:min-h-[320px] h-auto flex lg:flex-col flex-row items-center justify-center lg:justify-start lg:mt-0 mt-4">
-              <VerticalProgressBar
-                value={totalProgress}
-                max={100}
-                label="Progresso Total"
-                color={COLOR_PALETTE[0]}
-                showPercentage={true}
-                animated={true}
-                height="lg:h-64 h-16"
-                width="lg:w-12 w-full"
-              />
-            </div>
+            {/* Barra de Progresso Vertical - escondida quando o layout vira coluna */}
+            {!isColumnLayout && (
+              <div className="lg:w-32 w-full lg:min-h-[320px] h-auto flex lg:flex-col flex-row items-center justify-center lg:justify-start lg:mt-0 mt-4">
+                <VerticalProgressBar
+                  value={totalProgress}
+                  max={100}
+                  label="Progresso Total"
+                  color={COLOR_PALETTE[0]}
+                  showPercentage={true}
+                  animated={true}
+                  height="lg:h-64 h-16"
+                  width="lg:w-12 w-full"
+                />
+              </div>
+            )}
           </div>
         )}
       </CardContent>
