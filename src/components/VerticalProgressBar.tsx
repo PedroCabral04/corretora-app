@@ -51,13 +51,12 @@ export const VerticalProgressBar = ({
         
         {/* Barra de progresso com animação suave */}
         <div
-          className="absolute bottom-0 left-0 right-0 rounded-full transition-all duration-1500 ease-out shadow-lg"
+          className="absolute bottom-0 left-0 right-0 rounded-full shadow-lg"
           style={{
             height: `${displayValue}%`,
             background: `linear-gradient(to top, ${color}, ${color}dd, ${color}99)`,
             boxShadow: `0 0 20px ${color}40, inset 0 0 10px ${color}30`,
-            transform: animated ? `scaleY(${displayValue / 100})` : `scaleY(1)`,
-            transformOrigin: "bottom",
+            transition: animated ? "height 600ms cubic-bezier(.2,.8,.2,1)" : "none",
           }}
         >
           {/* Efeito de brilho na parte superior da barra */}
