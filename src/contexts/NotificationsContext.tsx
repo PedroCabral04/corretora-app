@@ -6,7 +6,7 @@ import { useGoals } from './GoalsContext';
 import { useEvents } from './EventsContext';
 import { useMeetings } from './MeetingsContext';
 import { useBrokers } from './BrokersContext';
-import { usePerformance } from './PerformanceContext';
+import { usePerformanceChallenges } from './PerformanceChallengesContext';
 
 export type NotificationType = 'task' | 'goal' | 'event' | 'meeting' | 'performance' | 'challenge';
 export type NotificationPriority = 'low' | 'medium' | 'high';
@@ -59,7 +59,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
   const { events } = useEvents();
   const { meetings } = useMeetings();
   const { brokers } = useBrokers();
-  const { challenges, getChallengesByBrokerId } = usePerformance();
+  const { challenges, getChallengesByBrokerId } = usePerformanceChallenges();
 
   const fetchNotifications = async () => {
     if (!user) {
@@ -105,7 +105,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
     fetchNotifications();
   }, [user]);
 
-  const createNotification = async (data: Omit<Notification, 'id' | 'userId' | 'isRead' | 'createdAt' | 'updatedAt'>): Promise<Notification | null> => {
+  const createNotification = useCallback(async (data: Omit<Notification, 'id' | 'userId' | 'isRead' | 'createdAt' | 'updatedAt'>): Promise<Notification | null> => {
     if (!user) throw new Error('User not authenticated');
 
     const { data: newNotification, error } = await supabase
@@ -149,7 +149,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
 
     setNotifications(prev => [notification, ...prev]);
     return notification;
-  };
+  }, [user]);
 
   const markAsRead = async (id: string) => {
     const { error } = await supabase
@@ -474,22 +474,22 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
       }
 
       // Check if challenge was just completed
-      if (challenge.totalProgress && challenge.totalProgress >= 100) {
-        const completedNotification = notifications.find(
-          n => n.relatedId === challenge.id &&
-               n.type === 'performance' &&
-               n.title.includes('concluído') &&
-               new Date(n.createdAt) > twentyFourHoursAgo
-        );
+        if (challenge.overallProgress && challenge.overallProgress >= 100) {
+          const completedNotification = notifications.find(
+            n => n.relatedId === challenge.id &&
+                 n.type === 'performance' &&
+                 n.title.includes('concluído') &&
+                 new Date(n.createdAt) > twentyFourHoursAgo
+          );
 
         if (!completedNotification) {
           shouldNotify = true;
-          message = `🎉 ${challengePrefix} foi concluído com sucesso! Progresso: 100%`;
+    message = `🎉 ${challengePrefix} foi concluído com sucesso! Progresso: 100%`;
           priority = 'high';
         }
       }
 
-      if (shouldNotify) {
+  if (shouldNotify) {
         try {
           const notificationType = message.includes('concluído') ? 'performance' : 'challenge';
           await createNotification({
@@ -504,7 +504,7 @@ export const NotificationsProvider = ({ children }: NotificationsProviderProps) 
         }
       }
     }
-  }, [user, tasks, goals, events, meetings, notifications, brokers, challenges, getChallengesByBrokerId]);
+  }, [user, tasks, goals, events, meetings, notifications, brokers, challenges, getChallengesByBrokerId, createNotification]);
 
   // Check for deadline notifications every 5 minutes
   useEffect(() => {
