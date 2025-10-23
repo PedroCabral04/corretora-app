@@ -683,19 +683,25 @@ useEffect(() => {
       const modifiedValue = sliderValues[sliderKey];
       
       if (modifiedValue !== undefined) {
-        // Calcula o novo progresso com base no valor modificado
-        const newProgress = target.targetValue > 0
-          ? Math.min(Math.max((modifiedValue / target.targetValue) * 100, 0), 100)
+        // Calcula o novo progresso com base no valor modificado (usando inteiros)
+        const targetInt = Math.round(target.targetValue);
+        const modifiedInt = Math.round(modifiedValue);
+        const newProgress = targetInt > 0
+          ? Math.min(Math.max((modifiedInt / targetInt) * 100, 0), 100)
           : 0;
           
         return {
           ...target,
-          currentValue: modifiedValue,
+          currentValue: modifiedInt,
           progress: newProgress
         };
       }
       
-      return target;
+      return {
+        ...target,
+        currentValue: Math.round(target.currentValue),
+        progress: target.progress
+      };
     });
   };
 

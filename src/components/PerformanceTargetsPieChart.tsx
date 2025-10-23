@@ -54,13 +54,15 @@ const mapTargetsToChartData = (targets: PerformanceTarget[]): ChartDatum[] =>
   targets
     .filter((target) => target.targetValue > 0)
     .map((target, index) => {
-      const percent = Math.min(Math.max(target.currentValue / target.targetValue, 0), 1) * 100;
+      const currentInt = Math.round(target.currentValue);
+      const targetInt = Math.round(target.targetValue);
+      const percent = targetInt > 0 ? Math.min(Math.max(currentInt / targetInt, 0), 1) * 100 : 0;
       return {
         name: METRIC_LABELS[target.metricType] ?? target.metricType,
         value: percent,
         percent,
-        current: target.currentValue,
-        target: target.targetValue,
+        current: currentInt,
+        target: targetInt,
         color: COLOR_PALETTE[index % COLOR_PALETTE.length],
       };
     });
@@ -78,14 +80,14 @@ const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
           <span className="block font-medium text-foreground">Planejado</span>
-          <span className="text-muted-foreground">{entry.target}</span>
+          <span className="text-muted-foreground">{Math.round(entry.target)}</span>
         </div>
         <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
           <span className="block font-medium text-foreground">Atual</span>
-          <span className="text-muted-foreground">{entry.current}</span>
+          <span className="text-muted-foreground">{Math.round(entry.current)}</span>
         </div>
       </div>
-      <div className="text-[11px] text-muted-foreground">Progresso: {Math.round(entry.percent)}</div>
+      <div className="text-[11px] text-muted-foreground">Progresso: {Math.round(entry.percent)}%</div>
     </div>
   );
 };

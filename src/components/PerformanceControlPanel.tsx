@@ -45,25 +45,24 @@ interface MetricControlProps {
 }
 
 const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
-  const [localValue, setLocalValue] = useState(target.currentValue);
-  const [inputValue, setInputValue] = useState(target.currentValue.toString());
+  const [localValue, setLocalValue] = useState(Math.round(target.currentValue));
+  const [inputValue, setInputValue] = useState(Math.round(target.currentValue).toString());
   
   useEffect(() => {
-    setLocalValue(target.currentValue);
-    setInputValue(target.currentValue.toString());
+    const roundedValue = Math.round(target.currentValue);
+    setLocalValue(roundedValue);
+    setInputValue(roundedValue.toString());
   }, [target.currentValue]);
 
   const handleIncrement = useCallback(() => {
-    const step = target.targetValue < 10 ? 0.1 : target.targetValue < 100 ? 1 : 5;
-    const newValue = Math.min(localValue + step, target.targetValue);
+    const newValue = Math.min(localValue + 1, Math.round(target.targetValue));
     setLocalValue(newValue);
     setInputValue(newValue.toString());
     onChange(newValue);
   }, [localValue, target.targetValue, onChange]);
 
   const handleDecrement = useCallback(() => {
-    const step = target.targetValue < 10 ? 0.1 : target.targetValue < 100 ? 1 : 5;
-    const newValue = Math.max(localValue - step, 0);
+    const newValue = Math.max(localValue - 1, 0);
     setLocalValue(newValue);
     setInputValue(newValue.toString());
     onChange(newValue);
@@ -74,9 +73,9 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
   }, []);
 
   const handleInputBlur = useCallback(() => {
-    const newValue = parseFloat(inputValue);
+    const newValue = parseInt(inputValue);
     if (!isNaN(newValue)) {
-      const clampedValue = Math.max(0, Math.min(newValue, target.targetValue));
+      const clampedValue = Math.max(0, Math.min(newValue, Math.round(target.targetValue)));
       setLocalValue(clampedValue);
       setInputValue(clampedValue.toString());
       onChange(clampedValue);
@@ -91,8 +90,8 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
     }
   }, [handleInputBlur]);
 
-  const progressPercentage = target.targetValue > 0
-    ? Math.min(Math.max((localValue / target.targetValue) * 100, 0), 100)
+  const progressPercentage = Math.round(target.targetValue) > 0
+    ? Math.min(Math.max((localValue / Math.round(target.targetValue)) * 100, 0), 100)
     : 0;
 
   return (
@@ -105,7 +104,7 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
         <div>
           <div className="text-sm font-medium">{METRIC_LABELS[target.metricType]}</div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Meta: {target.targetValue.toFixed(1)}</span>
+            <span>Meta: {Math.round(target.targetValue)}</span>
           </div>
         </div>
       </div>
@@ -116,7 +115,7 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
           className="text-xs font-semibold"
           style={{ borderColor: color, color }}
         >
-          {progressPercentage.toFixed(0)}%
+          {Math.round(progressPercentage)}%
         </Badge>
         
         <div className="flex items-center gap-1">
@@ -137,8 +136,8 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
             onBlur={handleInputBlur}
             onKeyPress={handleInputKeyPress}
             min={0}
-            max={target.targetValue}
-            step={target.targetValue < 10 ? 0.1 : target.targetValue < 100 ? 1 : 5}
+            max={Math.round(target.targetValue)}
+            step={1}
             className="w-16 h-7 text-center text-xs"
           />
           
@@ -147,7 +146,7 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
             size="icon"
             className="h-7 w-7"
             onClick={handleIncrement}
-            disabled={localValue >= target.targetValue}
+            disabled={localValue >= Math.round(target.targetValue)}
           >
             <Plus className="h-3 w-3" />
           </Button>
