@@ -90,6 +90,7 @@ interface PerformanceChallengesContextValue {
   deleteChallenge: (id: string) => Promise<void>;
   getChallengesByBrokerId: (brokerId: string) => PerformanceChallenge[];
   refreshChallenges: () => Promise<void>;
+  updateTargetProgress: (challengeId: string, targetId: string, newCurrentValue: number) => Promise<void>;
 }
 
 const PerformanceChallengesContext = createContext<PerformanceChallengesContextValue | undefined>(
@@ -345,6 +346,35 @@ export const PerformanceChallengesProvider = ({ children }: { children: ReactNod
     }
 
     if (input.targets) {
+      // Optimistic update: apply target changes locally first so UI updates immediately
+      const previousState = challenges;
+      try {
+        setChallenges((prev) =>
+          prev.map((c) => (c.id === id ? {
+            ...c,
+            targets: (input.targets || []).map((t) => {
+              const existing = c.targets.find((ct) => ct.id === t.id);
+              const currentValue = t.currentValue ?? existing?.currentValue ?? 0;
+              const targetValue = t.targetValue ?? existing?.targetValue ?? 0;
+              const progress = targetValue > 0 ? Math.min(Math.max((currentValue / targetValue) * 100, 0), 100) : 0;
+              return {
+                id: t.id ?? existing?.id ?? `tmp-${Math.random()}`,
+                challengeId: id,
+                metricType: t.metricType,
+                targetValue: t.targetValue,
+                currentValue,
+                createdAt: existing?.createdAt ?? new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                progress,
+              } as PerformanceTarget;
+            })
+          } : c))
+        );
+      } catch (err) {
+        // if optimistic update fails (shouldn't), fall through to normal behavior
+        console.error('Optimistic update error:', err);
+        setChallenges(previousState);
+      }
       const { data: existingTargets } = await supabase
         .from("performance_targets")
         .select("id")
@@ -418,6 +448,83 @@ export const PerformanceChallengesProvider = ({ children }: { children: ReactNod
     await fetchChallenges();
   };
 
+  // For debounced batching of target updates per challenge
+  const pendingTargetQueueRef = (globalThis as any).__pendingTargetQueueRef as
+    | { current: Record<string, Record<string, number>> }
+    | undefined;
+
+  // create refs local to module (useRef can't be used outside component scope) — store on globalThis to persist across HMR in dev
+  if (!pendingTargetQueueRef) {
+    (globalThis as any).__pendingTargetQueueRef = { current: {} };
+  }
+
+  const getPendingQueue = () => (globalThis as any).__pendingTargetQueueRef.current as Record<string, Record<string, number>>;
+
+  const updateTimeoutsRef: Record<string, ReturnType<typeof setTimeout>> = (globalThis as any).__updateTargetTimeoutsRef || {};
+  if (!(globalThis as any).__updateTargetTimeoutsRef) {
+    (globalThis as any).__updateTargetTimeoutsRef = updateTimeoutsRef;
+  }
+
+  const schedulePersistForChallenge = (challengeId: string) => {
+    if (updateTimeoutsRef[challengeId]) {
+      clearTimeout(updateTimeoutsRef[challengeId]);
+    }
+    updateTimeoutsRef[challengeId] = setTimeout(async () => {
+      const pending = getPendingQueue()[challengeId];
+      if (!pending) {
+        delete updateTimeoutsRef[challengeId];
+        return;
+      }
+
+      // build payload by merging pending changes into the challenge's full targets list
+      const challenge = challenges.find((c) => c.id === challengeId);
+      const targetsPayload = (challenge?.targets ?? []).map((t) => ({
+        id: t.id,
+        metricType: t.metricType,
+        targetValue: t.targetValue,
+        currentValue: pending[t.id] !== undefined ? pending[t.id] : t.currentValue,
+      }));
+
+      try {
+        // use updateChallenge to persist and merge
+        await updateChallenge(challengeId, { targets: targetsPayload as any });
+        // clear pending
+        delete getPendingQueue()[challengeId];
+      } catch (err) {
+        console.error('Error persisting batched target updates:', err);
+        // clear pending and refresh
+        delete getPendingQueue()[challengeId];
+        await fetchChallenges();
+      } finally {
+        delete updateTimeoutsRef[challengeId];
+      }
+    }, 800);
+  };
+
+  const updateTargetProgress = async (challengeId: string, targetId: string, newCurrentValue: number) => {
+    // optimistic update locally immediately
+    setChallenges((prevList) =>
+      prevList.map((c) => {
+        if (c.id !== challengeId) return c;
+        return {
+          ...c,
+          targets: c.targets.map((t) => {
+            if (t.id !== targetId) return t;
+            const newProgress = t.targetValue > 0 ? Math.min(Math.max((newCurrentValue / t.targetValue) * 100, 0), 100) : 0;
+            return { ...t, currentValue: newCurrentValue, progress: newProgress };
+          }),
+        };
+      })
+    );
+
+    // enqueue for debounced persistence
+    const queue = getPendingQueue();
+    queue[challengeId] = queue[challengeId] || {};
+    queue[challengeId][targetId] = newCurrentValue;
+
+    schedulePersistForChallenge(challengeId);
+  };
+
   const value: PerformanceChallengesContextValue = {
     challenges,
     isLoading,
@@ -426,6 +533,7 @@ export const PerformanceChallengesProvider = ({ children }: { children: ReactNod
     deleteChallenge,
     getChallengesByBrokerId,
     refreshChallenges,
+    updateTargetProgress,
   };
 
   return (

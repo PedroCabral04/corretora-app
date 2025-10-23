@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
@@ -69,7 +70,8 @@ type ChallengeFormState = {
   priority: PerformanceChallengePriority;
   startDate: string;
   endDate: string;
-  targets: ChallengeTargetForm[];
+  selectedMetrics: Set<PerformanceMetricType>;
+  metricValues: Record<PerformanceMetricType, { targetValue: string; currentValue: string }>;
 };
 
 const BrokerDetails = () => {
@@ -103,6 +105,7 @@ const BrokerDetails = () => {
     deleteChallenge,
     getChallengesByBrokerId,
     refreshChallenges,
+    updateTargetProgress,
   } = usePerformanceChallenges();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
@@ -202,7 +205,8 @@ const BrokerDetails = () => {
       priority: 'medium',
       startDate,
       endDate: endDateObj.toISOString().split('T')[0],
-      targets: [createEmptyTarget()],
+      selectedMetrics: new Set<PerformanceMetricType>(),
+      metricValues: {} as Record<PerformanceMetricType, { targetValue: string; currentValue: string }>,
     };
   };
     
@@ -397,6 +401,19 @@ useEffect(() => {
 
     if (challenge) {
       setEditingChallenge(challenge);
+      
+      const selectedMetrics = new Set<PerformanceMetricType>(
+        challenge.targets.map(t => t.metricType)
+      );
+      
+      const metricValues = challenge.targets.reduce((acc, target) => {
+        acc[target.metricType] = {
+          targetValue: target.targetValue.toString(),
+          currentValue: target.currentValue.toString(),
+        };
+        return acc;
+      }, {} as Record<PerformanceMetricType, { targetValue: string; currentValue: string }>);
+      
       setChallengeForm({
         title: challenge.title,
         description: challenge.description || '',
@@ -404,12 +421,8 @@ useEffect(() => {
         priority: challenge.priority,
         startDate: challenge.startDate,
         endDate: challenge.endDate,
-        targets: challenge.targets.map((target) => ({
-          id: target.id,
-          metricType: target.metricType,
-          targetValue: target.targetValue.toString(),
-          currentValue: target.currentValue.toString(),
-        })),
+        selectedMetrics,
+        metricValues,
       });
       setPerformanceModalOpen(true);
       return;
@@ -424,55 +437,61 @@ useEffect(() => {
     resetChallengeForm();
   };
 
-  const handleAddTargetRow = () => {
+  const handleMetricToggle = (metricType: PerformanceMetricType, checked: boolean) => {
+    setChallengeForm((prev) => {
+      const newSelectedMetrics = new Set(prev.selectedMetrics);
+      const newMetricValues = { ...prev.metricValues };
+      
+      if (checked) {
+        newSelectedMetrics.add(metricType);
+        if (!newMetricValues[metricType]) {
+          newMetricValues[metricType] = { targetValue: '', currentValue: '0' };
+        }
+      } else {
+        newSelectedMetrics.delete(metricType);
+        delete newMetricValues[metricType];
+      }
+      
+      return {
+        ...prev,
+        selectedMetrics: newSelectedMetrics,
+        metricValues: newMetricValues,
+      };
+    });
+  };
+
+  const handleMetricValueChange = (
+    metricType: PerformanceMetricType,
+    field: 'targetValue' | 'currentValue',
+    value: string,
+  ) => {
     setChallengeForm((prev) => ({
       ...prev,
-      targets: [...prev.targets, createEmptyTarget()],
+      metricValues: {
+        ...prev.metricValues,
+        [metricType]: {
+          ...prev.metricValues[metricType],
+          [field]: value,
+        },
+      },
     }));
   };
 
-  const handleRemoveTargetRow = (index: number) => {
-    setChallengeForm((prev) => {
-      if (prev.targets.length <= 1) {
-        return prev;
-      }
-
-      const nextTargets = prev.targets.filter((_, idx) => idx !== index);
-      return {
-        ...prev,
-        targets: nextTargets,
-      };
-    });
-  };
-
-  const handleTargetFieldChange = (
-    index: number,
-    field: keyof ChallengeTargetForm,
-    value: string,
-  ) => {
-    setChallengeForm((prev) => {
-      const nextTargets = [...prev.targets];
-      nextTargets[index] = {
-        ...nextTargets[index],
-        [field]: field === 'metricType' ? (value as PerformanceMetricType) : value,
-      } as ChallengeTargetForm;
-
-      return {
-        ...prev,
-        targets: nextTargets,
-      };
-    });
-  };
-
   const normalizeTargets = (): PerformanceTargetInput[] =>
-    challengeForm.targets
-      .map((target) => ({
-        id: target.id,
-        metricType: target.metricType,
-        targetValue: Number(target.targetValue),
-        currentValue: target.currentValue ? Number(target.currentValue) : 0,
-      }))
-      .filter((target) => Number.isFinite(target.targetValue) && target.targetValue > 0);
+    Array.from(challengeForm.selectedMetrics)
+      .map((metricType) => {
+        const values = challengeForm.metricValues[metricType];
+        if (!values) return null;
+        
+        return {
+          metricType,
+          targetValue: Number(values.targetValue),
+          currentValue: values.currentValue ? Number(values.currentValue) : 0,
+        };
+      })
+      .filter((target): target is NonNullable<typeof target> => 
+        target !== null && Number.isFinite(target.targetValue) && target.targetValue > 0
+      );
 
   const handlePerformanceSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -684,6 +703,15 @@ useEffect(() => {
       ...prev,
       [`${challengeId}-${targetId}`]: newValue
     }));
+
+    // call optimistic single-target update in PerformanceChallenges context
+    try {
+      if (typeof updateTargetProgress === 'function') {
+        void updateTargetProgress(challengeId, targetId, Math.round(newValue));
+      }
+    } catch (err) {
+      // ignore
+    }
   };
 
   const getModifiedTargets = (challenge: PerformanceChallenge | null) => {
@@ -1289,10 +1317,6 @@ useEffect(() => {
                   {/* Header do Dashboard */}
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-col gap-1">
-                      <h3 className="text-xl font-semibold">Dashboard de Desempenho</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Acompanhe em tempo real o progresso dos indicadores do desafio selecionado.
-                      </p>
                     </div>
                     <div className="flex items-center gap-3">
                       <Select
@@ -2139,7 +2163,7 @@ useEffect(() => {
             }
           }}
         >
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingChallenge ? "Editar desafio" : "Novo desafio"}
@@ -2247,91 +2271,109 @@ useEffect(() => {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">Indicadores de desempenho</p>
-                    <p className="text-xs text-muted-foreground">
-                      Combine múltiplas métricas para compor o desafio deste corretor.
-                    </p>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddTargetRow}>
-                    Adicionar indicador
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {challengeForm.targets.map((target, index) => (
-                    <div
-                      key={target.id ?? index}
-                      className="grid gap-3 rounded-lg border p-4 md:grid-cols-[1.3fr_1fr_1fr_auto]"
-                    >
-                      <div>
-                        <Label htmlFor={`target-metric-${index}`}>Métrica *</Label>
-                        <Select
-                          value={target.metricType}
-                          onValueChange={(value) =>
-                            handleTargetFieldChange(index, 'metricType', value)
-                          }
-                        >
-                          <SelectTrigger id={`target-metric-${index}`}>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {metricOptions.map((option) => (
-                              <SelectItem key={option} value={option}>
-                                {metricLabels[option]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor={`target-value-${index}`}>Meta planejada *</Label>
-                        <Input
-                          id={`target-value-${index}`}
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={target.targetValue}
-                          onChange={(event) =>
-                            handleTargetFieldChange(index, 'targetValue', event.target.value)
-                          }
-                          placeholder="0"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor={`current-value-${index}`}>Progresso atual</Label>
-                        <Input
-                          id={`current-value-${index}`}
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={target.currentValue}
-                          onChange={(event) =>
-                            handleTargetFieldChange(index, 'currentValue', event.target.value)
-                          }
-                          placeholder="0"
-                        />
-                      </div>
-
-                      <div className="flex items-end justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveTargetRow(index)}
-                          disabled={challengeForm.targets.length <= 1}
-                          aria-label="Remover indicador"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-sm font-medium">Indicadores de desempenho</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Selecione as métricas e defina as metas para este desafio.
+                      </p>
                     </div>
-                  ))}
+                    {challengeForm.selectedMetrics.size > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {challengeForm.selectedMetrics.size} selecionado{challengeForm.selectedMetrics.size !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {metricOptions.map((metricType) => {
+                      const isSelected = challengeForm.selectedMetrics.has(metricType);
+                      const values = challengeForm.metricValues[metricType] || { targetValue: '', currentValue: '0' };
+                      
+                      return (
+                        <div 
+                          key={metricType} 
+                          className={`rounded-lg border transition-all ${
+                            isSelected 
+                              ? 'bg-primary/5 border-primary/40 shadow-sm' 
+                              : 'bg-card hover:bg-muted/20 border-border'
+                          }`}
+                        >
+                          {/* Checkbox e Label do Indicador */}
+                          <div className="flex items-center space-x-3 p-4">
+                            <Checkbox
+                              id={`metric-${metricType}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleMetricToggle(metricType, checked as boolean)}
+                              className="mt-0.5"
+                            />
+                            <Label
+                              htmlFor={`metric-${metricType}`}
+                              className="text-sm font-medium leading-none cursor-pointer flex-1"
+                            >
+                              {metricLabels[metricType]}
+                            </Label>
+                            {isSelected && (
+                              <Badge variant="outline" className="text-xs">
+                                Ativo
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Campos de Meta e Progresso - aparecem quando selecionado */}
+                          {isSelected && (
+                            <div className="grid gap-4 md:grid-cols-2 px-4 pb-4 pt-2 border-t bg-background/50">
+                              <div>
+                                <Label htmlFor={`target-value-${metricType}`} className="text-xs font-medium text-muted-foreground">
+                                  🎯 Meta planejada *
+                                </Label>
+                                <Input
+                                  id={`target-value-${metricType}`}
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={values.targetValue}
+                                  onChange={(event) =>
+                                    handleMetricValueChange(metricType, 'targetValue', event.target.value)
+                                  }
+                                  placeholder="Ex: 10"
+                                  className="mt-1.5"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor={`current-value-${metricType}`} className="text-xs font-medium text-muted-foreground">
+                                  📊 Progresso atual
+                                </Label>
+                                <Input
+                                  id={`current-value-${metricType}`}
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={values.currentValue}
+                                  onChange={(event) =>
+                                    handleMetricValueChange(metricType, 'currentValue', event.target.value)
+                                  }
+                                  placeholder="Ex: 3"
+                                  className="mt-1.5"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {challengeForm.selectedMetrics.size === 0 && (
+                  <div className="text-center py-8 text-sm text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
+                    <p className="font-medium">Nenhum indicador selecionado</p>
+                    <p className="text-xs mt-1">Selecione pelo menos um indicador acima para criar o desafio</p>
+                  </div>
+                )}
               </div>
 
               <DialogFooter>

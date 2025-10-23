@@ -47,48 +47,76 @@ interface MetricControlProps {
 const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
   const [localValue, setLocalValue] = useState(Math.round(target.currentValue));
   const [inputValue, setInputValue] = useState(Math.round(target.currentValue).toString());
-  
+
+  // keep local state in sync when parent updates the target
   useEffect(() => {
-    const roundedValue = Math.round(target.currentValue);
-    setLocalValue(roundedValue);
-    setInputValue(roundedValue.toString());
+    const rounded = Math.round(target.currentValue);
+    setLocalValue(rounded);
+    setInputValue(String(rounded));
   }, [target.currentValue]);
 
+  // debounce commit for input typing
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const parsed = parseInt(inputValue, 10);
+      if (!isNaN(parsed)) {
+        const clamped = Math.max(0, Math.min(parsed, Math.round(target.targetValue)));
+        if (clamped !== localValue) {
+          setLocalValue(clamped);
+          onChange(clamped);
+        }
+      }
+    }, 700);
+
+    return () => clearTimeout(handler);
+    // purposely exclude localValue and onChange from deps to avoid resetting debounce unnecessarily
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputValue, target.targetValue]);
+
+  const commitInputImmediately = useCallback(() => {
+    const parsed = parseInt(inputValue, 10);
+    if (!isNaN(parsed)) {
+      const clamped = Math.max(0, Math.min(parsed, Math.round(target.targetValue)));
+      setLocalValue(clamped);
+      setInputValue(String(clamped));
+      onChange(clamped);
+    } else {
+      // restore previous valid value
+      setInputValue(String(localValue));
+    }
+  }, [inputValue, localValue, target.targetValue, onChange]);
+
   const handleIncrement = useCallback(() => {
-    const newValue = Math.min(localValue + 1, Math.round(target.targetValue));
-    setLocalValue(newValue);
-    setInputValue(newValue.toString());
-    onChange(newValue);
-  }, [localValue, target.targetValue, onChange]);
+    setLocalValue((prev) => {
+      const next = Math.min(prev + 1, Math.round(target.targetValue));
+      setInputValue(String(next));
+      onChange(next);
+      return next;
+    });
+  }, [target.targetValue, onChange]);
 
   const handleDecrement = useCallback(() => {
-    const newValue = Math.max(localValue - 1, 0);
-    setLocalValue(newValue);
-    setInputValue(newValue.toString());
-    onChange(newValue);
-  }, [localValue, onChange]);
+    setLocalValue((prev) => {
+      const next = Math.max(prev - 1, 0);
+      setInputValue(String(next));
+      onChange(next);
+      return next;
+    });
+  }, [onChange]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   }, []);
 
   const handleInputBlur = useCallback(() => {
-    const newValue = parseInt(inputValue);
-    if (!isNaN(newValue)) {
-      const clampedValue = Math.max(0, Math.min(newValue, Math.round(target.targetValue)));
-      setLocalValue(clampedValue);
-      setInputValue(clampedValue.toString());
-      onChange(clampedValue);
-    } else {
-      setInputValue(localValue.toString());
-    }
-  }, [inputValue, localValue, target.targetValue, onChange]);
+    commitInputImmediately();
+  }, [commitInputImmediately]);
 
-  const handleInputKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleInputBlur();
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      commitInputImmediately();
     }
-  }, [handleInputBlur]);
+  }, [commitInputImmediately]);
 
   const progressPercentage = Math.round(target.targetValue) > 0
     ? Math.min(Math.max((localValue / Math.round(target.targetValue)) * 100, 0), 100)
@@ -130,7 +158,7 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
             value={inputValue}
             onChange={handleInputChange}
             onBlur={handleInputBlur}
-            onKeyPress={handleInputKeyPress}
+            onKeyDown={handleInputKeyDown}
             min={0}
             max={Math.round(target.targetValue)}
             step={1}
@@ -173,7 +201,6 @@ export const PerformanceControlPanel = ({
     <Card className={`${className} border-0 shadow-lg bg-gradient-to-br from-card to-card/80`}>
       <CardContent className="pt-6">
         <div className="mb-6 text-center">
-          <h3 className="text-lg font-semibold mb-2">Painel de Controle</h3>
           <p className="text-xs text-muted-foreground">
             Ajuste os valores e visualize o impacto em tempo real no gráfico
           </p>
