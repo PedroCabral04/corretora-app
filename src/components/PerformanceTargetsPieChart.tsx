@@ -8,6 +8,7 @@ import {
   Legend,
   TooltipProps,
 } from "recharts";
+import { VerticalProgressBar } from "@/components/VerticalProgressBar";
 import type {
   PerformanceTarget,
   PerformanceMetricType,
@@ -99,6 +100,11 @@ export const PerformanceTargetsPieChart = ({
 }: PerformanceTargetsPieChartProps) => {
   const chartData = mapTargetsToChartData(targets);
 
+  // Calcular o progresso total médio de todos os indicadores
+  const totalProgress = chartData.length > 0
+    ? chartData.reduce((sum, item) => sum + item.percent, 0) / chartData.length
+    : 0;
+
   return (
     <Card className={className}>
       <CardHeader className="space-y-1">
@@ -111,40 +117,57 @@ export const PerformanceTargetsPieChart = ({
             Nenhum indicador cadastrado para este desafio.
           </div>
         ) : (
-          <div className="h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={120}
-                  paddingAngle={3}
-                  cornerRadius={6}
-                  labelLine={false}
-                  label={({ name, value }) => `${name} (${Math.round(value)})`}
-                >
-                  {chartData.map((entry) => (
-                    <Cell
-                      key={entry.name}
-                      fill={entry.color}
-                      fillOpacity={0.55 + entry.value / 250}
-                      stroke="rgba(255,255,255,0.6)"
-                      strokeWidth={1}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: "none" }} />
-                <Legend
-                  verticalAlign="bottom"
-                  iconType="circle"
-                  formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex flex-col lg:flex-row gap-6 items-center justify-center">
+            {/* Gráfico de Pizza */}
+            <div className="flex-1 w-full h-[320px] min-w-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={120}
+                    paddingAngle={3}
+                    cornerRadius={6}
+                    labelLine={false}
+                    label={({ name, value }) => `${name} (${Math.round(value)})`}
+                  >
+                    {chartData.map((entry) => (
+                      <Cell
+                        key={entry.name}
+                        fill={entry.color}
+                        fillOpacity={0.55 + entry.value / 250}
+                        stroke="rgba(255,255,255,0.6)"
+                        strokeWidth={1}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} wrapperStyle={{ outline: "none" }} />
+                  <Legend
+                    verticalAlign="bottom"
+                    iconType="circle"
+                    formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Barra de Progresso Vertical - Layout Responsivo */}
+            <div className="lg:w-32 w-full lg:min-h-[320px] h-auto flex lg:flex-col flex-row items-center justify-center lg:justify-start lg:mt-0 mt-4">
+              <VerticalProgressBar
+                value={totalProgress}
+                max={100}
+                label="Progresso Total"
+                color={COLOR_PALETTE[0]}
+                showPercentage={true}
+                animated={true}
+                height="lg:h-64 h-16"
+                width="lg:w-12 w-full"
+              />
+            </div>
           </div>
         )}
       </CardContent>
