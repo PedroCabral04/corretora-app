@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Using a custom SVG implementation instead of Recharts for full control of animation and layout
 import { VerticalProgressBar } from "@/components/VerticalProgressBar";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   PerformanceTarget,
   PerformanceMetricType,
@@ -35,31 +35,41 @@ const COLOR_PALETTE = [
   "#6366f1",
 ];
 
-interface ChartDatum {
+interface SliceDatum {
   name: string;
-  value: number;
   percent: number;
+  percentNormalized: number;
   current: number;
   target: number;
   color: string;
+  startAngle: number;
+  endAngle: number;
 }
 
-const mapTargetsToChartData = (targets: PerformanceTarget[]): ChartDatum[] =>
-  targets
-    .filter((target) => target.targetValue > 0)
-    .map((target, index) => {
-      const currentInt = Math.round(target.currentValue);
-      const targetInt = Math.round(target.targetValue);
-      const percent = targetInt > 0 ? Math.min(Math.max(currentInt / targetInt, 0), 1) * 100 : 0;
-      return {
-        name: METRIC_LABELS[target.metricType] ?? target.metricType,
-        value: percent,
-        percent,
-        current: currentInt,
-        target: targetInt,
-        color: COLOR_PALETTE[index % COLOR_PALETTE.length],
-      };
-    });
+const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDeg: number) => {
+  const angleInRad = ((angleInDeg - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radius * Math.cos(angleInRad),
+    y: centerY + radius * Math.sin(angleInRad),
+  };
+};
+
+const createDonutSegmentPath = (
+  cx: number,
+  cy: number,
+  innerRadius: number,
+  outerRadius: number,
+  startAngle: number,
+  endAngle: number
+) => {
+  const outerStart = polarToCartesian(cx, cy, outerRadius, endAngle);
+  const outerEnd = polarToCartesian(cx, cy, outerRadius, startAngle);
+  const innerStart = polarToCartesian(cx, cy, innerRadius, startAngle);
+  const innerEnd = polarToCartesian(cx, cy, innerRadius, endAngle);
+  const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
+
+  return `M ${outerStart.x} ${outerStart.y} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${outerEnd.x} ${outerEnd.y} L ${innerStart.x} ${innerStart.y} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerEnd.x} ${innerEnd.y} Z`;
+};
 
 // Simple hover tooltip (we'll render it manually on mouse events)
 const CustomTooltip = ({ name, target, current, percent }: { name: string; target: number; current: number; percent: number }) => (
@@ -84,42 +94,33 @@ export const PerformanceTargetsPieChart = ({
   title = "Progresso dos indicadores",
   className,
 }: PerformanceTargetsPieChartProps) => {
-  const chartData = mapTargetsToChartData(targets);
+  const sliceData = useMemo<SliceDatum[]>(() => {
+    const validTargets = targets.filter((target) => target.targetValue > 0);
+    const totalForAngles =
+      validTargets.reduce((sum, target) => sum + Math.max(1, Math.round(target.targetValue)), 0) || 1;
 
-  // slicesForPie uses target values to determine slice angles so the muted background
-  // represents the full targets (e.g., sales = 5 will occupy proportionally that space)
-  const slicesForPie = targets
-    .filter((t) => t.targetValue > 0)
-    .map((t, index) => {
-      const currentInt = Math.round(t.currentValue);
-      const targetInt = Math.round(t.targetValue);
-      const percent = targetInt > 0 ? Math.min(Math.max(currentInt / targetInt, 0), 1) * 100 : 0;
+    let cursor = 0;
+    return validTargets.map((target, index) => {
+      const currentInt = Math.round(target.currentValue);
+      const targetInt = Math.round(target.targetValue);
+      const percentNormalized = targetInt > 0 ? Math.min(Math.max(currentInt / targetInt, 0), 1) : 0;
+      const valueForAngles = Math.max(1, targetInt);
+      const startAngle = (cursor / totalForAngles) * 360;
+      const endAngle = ((cursor + valueForAngles) / totalForAngles) * 360;
+      cursor += valueForAngles;
+
       return {
-        name: METRIC_LABELS[t.metricType] ?? t.metricType,
-        target: Math.max(1, targetInt),
-        percent,
+        name: METRIC_LABELS[target.metricType] ?? target.metricType,
+        percent: percentNormalized * 100,
+        percentNormalized,
         current: currentInt,
+        target: targetInt,
         color: COLOR_PALETTE[index % COLOR_PALETTE.length],
-      } as any;
+        startAngle,
+        endAngle,
+      };
     });
-
-  // animated labels (numbers) - animate from 0 to percent
-  const [animatedData, setAnimatedData] = useState<ChartDatum[]>(
-    chartData.map((d) => ({ ...d, value: 0 }))
-  );
-
-  useEffect(() => {
-    const timeout = setTimeout(() => setAnimatedData(chartData.map((d) => ({ ...d }))), 120);
-    return () => clearTimeout(timeout);
-  }, [chartData]);
-
-  // mount trigger for clip animations
-  const [mounted, setMounted] = useState(false);
-  const uniqueRef = useRef(`p-${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
-  useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 50);
-    return () => clearTimeout(t);
-  }, []);
+  }, [targets]);
 
   // container measurement for responsive SVG
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -141,18 +142,22 @@ export const PerformanceTargetsPieChart = ({
       if (observer) observer.disconnect();
       else window.removeEventListener("resize", update);
     };
-  }, [containerRef.current]);
+  }, [sliceData.length]);
 
   // determine if layout is column (matches Tailwind's lg breakpoint used above)
   const isColumnLayout = size.w < 1024;
 
   // hover / tooltip state
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [tooltip, setTooltip] = useState<{ visible: boolean; left: number; top: number; entry?: any }>({ visible: false, left: 0, top: 0 });
+  const [tooltip, setTooltip] = useState<{ visible: boolean; left: number; top: number; entry?: SliceDatum }>({
+    visible: false,
+    left: 0,
+    top: 0,
+  });
 
   // Calcular o progresso total médio de todos os indicadores
-  const totalProgress = chartData.length > 0
-    ? chartData.reduce((sum, item) => sum + item.percent, 0) / chartData.length
+  const totalProgress = sliceData.length > 0
+    ? sliceData.reduce((sum, item) => sum + item.percent, 0) / sliceData.length
     : 0;
 
   return (
@@ -168,7 +173,7 @@ export const PerformanceTargetsPieChart = ({
         <p className="text-sm text-muted-foreground">Acompanhe o progresso dos indicadores de forma visual e interativa.</p>
       </CardHeader>
       <CardContent className="pt-0">
-        {chartData.length === 0 ? (
+        {sliceData.length === 0 ? (
           <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
             Nenhum indicador cadastrado para este desafio.
           </div>
@@ -176,7 +181,7 @@ export const PerformanceTargetsPieChart = ({
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-center">
             {/* Left vertical legend (vertical on the left side) */}
             <div className="flex flex-col gap-3 w-52 pr-4 justify-center">
-              {slicesForPie.map((s: any, idx: number) => (
+              {sliceData.map((s, idx) => (
                 <button
                   key={`legend-left-${idx}`}
                   onMouseEnter={() => setHoveredIndex(idx)}
@@ -225,100 +230,81 @@ export const PerformanceTargetsPieChart = ({
                   const cx = Math.max(size.w, 300) / 2;
                   const cy = Math.max(size.h, 300) / 2;
 
-                  const total = slicesForPie.reduce((s: number, it: any) => s + (it.target || 0), 0) || 1;
-                  let angleCursor = 0;
-
                   return (
                     <g>
                       {/* Background slices (muted) */}
-                      {slicesForPie.map((entry: any, idx: number) => {
-                        const a0 = (angleCursor / total) * 360;
-                        const a1 = ((angleCursor + entry.target) / total) * 360;
-                        angleCursor += entry.target;
+                      {sliceData.map((entry, idx) => {
+                        const isHovered = hoveredIndex === idx;
+                        const backgroundPath = createDonutSegmentPath(
+                          cx,
+                          cy,
+                          innerRadius,
+                          outerRadius,
+                          entry.startAngle,
+                          entry.endAngle
+                        );
 
-                        const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDeg: number) => {
-                          const angleInRad = ((angleInDeg - 90) * Math.PI) / 180.0;
-                          return {
-                            x: centerX + radius * Math.cos(angleInRad),
-                            y: centerY + radius * Math.sin(angleInRad),
-                          };
-                        };
+                        const progressAngle = entry.startAngle + (entry.endAngle - entry.startAngle) * entry.percentNormalized;
+                        const hasProgress = progressAngle > entry.startAngle;
+                        const progressPath = hasProgress
+                          ? createDonutSegmentPath(
+                              cx,
+                              cy,
+                              innerRadius,
+                              outerRadius,
+                              entry.startAngle,
+                              progressAngle
+                            )
+                          : null;
 
-                        const largeArc = a1 - a0 <= 180 ? 0 : 1;
-                        const outerStart = polarToCartesian(cx, cy, outerRadius, a1);
-                        const outerEnd = polarToCartesian(cx, cy, outerRadius, a0);
-                        const innerStart = polarToCartesian(cx, cy, innerRadius, a0);
-                        const innerEnd = polarToCartesian(cx, cy, innerRadius, a1);
-
-                        const d = `M ${outerStart.x} ${outerStart.y} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${outerEnd.x} ${outerEnd.y} L ${innerStart.x} ${innerStart.y} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerEnd.x} ${innerEnd.y} Z`;
-
-                        return <path key={`bg-${idx}`} d={d} fill={entry.color} opacity={0.08} stroke="transparent" />;
+                        return (
+                          <g
+                            key={`slice-${idx}`}
+                            onMouseEnter={(event) => {
+                              setHoveredIndex(idx);
+                              const rect = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                              if (rect) {
+                                setTooltip({
+                                  visible: true,
+                                  left: event.clientX - rect.left + 8,
+                                  top: event.clientY - rect.top + 8,
+                                  entry,
+                                });
+                              }
+                            }}
+                            onMouseMove={(event) => {
+                              const rect = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                              if (rect) {
+                                setTooltip({
+                                  visible: true,
+                                  left: event.clientX - rect.left + 8,
+                                  top: event.clientY - rect.top + 8,
+                                  entry,
+                                });
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              setHoveredIndex(null);
+                              setTooltip({ visible: false, left: 0, top: 0 });
+                            }}
+                          >
+                            <path d={backgroundPath} fill={entry.color} opacity={isHovered ? 0.14 : 0.08} />
+                            {progressPath && (
+                              <path
+                                d={progressPath}
+                                fill={entry.color}
+                                opacity={isHovered ? 1 : 0.95}
+                                stroke={isHovered ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.6)"}
+                                strokeWidth={isHovered ? 2 : 1}
+                                style={{
+                                  filter: isHovered ? "drop-shadow(0 6px 18px rgba(0,0,0,0.12))" : undefined,
+                                  transition: "opacity 180ms ease, stroke 180ms ease, filter 180ms ease",
+                                }}
+                              />
+                            )}
+                          </g>
+                        );
                       })}
-
-                      {/* Foreground fills (clipped vertically per-slice) */}
-                      {(() => {
-                        const elements: any[] = [];
-                        let cursor = 0;
-                        const tot = slicesForPie.reduce((s: number, it: any) => s + (it.target || 0), 0) || 1;
-                        for (let i = 0; i < slicesForPie.length; i++) {
-                          const entry = slicesForPie[i];
-                          const a0 = (cursor / tot) * 360;
-                          const a1 = ((cursor + entry.target) / tot) * 360;
-                          cursor += entry.target;
-
-                          const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDeg: number) => {
-                            const angleInRad = ((angleInDeg - 90) * Math.PI) / 180.0;
-                            return {
-                              x: centerX + radius * Math.cos(angleInRad),
-                              y: centerY + radius * Math.sin(angleInRad),
-                            };
-                          };
-
-                          const largeArc = a1 - a0 <= 180 ? 0 : 1;
-                          const outerStart = polarToCartesian(cx, cy, outerRadius, a1);
-                          const outerEnd = polarToCartesian(cx, cy, outerRadius, a0);
-                          const innerStart = polarToCartesian(cx, cy, innerRadius, a0);
-                          const innerEnd = polarToCartesian(cx, cy, innerRadius, a1);
-
-                          const d = `M ${outerStart.x} ${outerStart.y} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${outerEnd.x} ${outerEnd.y} L ${innerStart.x} ${innerStart.y} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerEnd.x} ${innerEnd.y} Z`;
-
-                          const pct = Math.min(Math.max((entry.percent ?? 0) / 100, 0), 1);
-                          const boxSize = outerRadius * 2;
-                          const rectHeight = mounted ? boxSize * pct : 0;
-                          const rectY = cy + outerRadius - rectHeight;
-                          const id = `${uniqueRef.current}-svg-${i}`;
-
-                          const isHovered = hoveredIndex === i;
-
-                          elements.push(
-                            <g key={`fg-${i}`}
-                              onMouseEnter={(e) => {
-                                setHoveredIndex(i);
-                                const rect = (e.target as SVGElement).closest('svg')?.getBoundingClientRect();
-                                if (rect) {
-                                  setTooltip({ visible: true, left: e.clientX - rect.left + 8, top: e.clientY - rect.top + 8, entry });
-                                }
-                              }}
-                              onMouseMove={(e) => {
-                                const rect = (e.target as SVGElement).closest('svg')?.getBoundingClientRect();
-                                if (rect) setTooltip({ visible: true, left: e.clientX - rect.left + 8, top: e.clientY - rect.top + 8, entry });
-                              }}
-                              onMouseLeave={() => { setHoveredIndex(null); setTooltip({ visible: false, left: 0, top: 0 }); }}
-                            >
-                              <defs>
-                                <clipPath id={`clip-${id}`}>
-                                  <rect x={cx - outerRadius} y={rectY} width={boxSize} height={rectHeight} style={{ transition: "all 700ms cubic-bezier(.2,.8,.2,1)" }} />
-                                </clipPath>
-                              </defs>
-                              <g clipPath={`url(#clip-${id})`}>
-                                <path d={d} fill={entry.color} opacity={isHovered ? 1 : 0.95} stroke={isHovered ? 'rgba(0,0,0,0.08)' : "rgba(255,255,255,0.6)"} strokeWidth={isHovered ? 2 : 1} style={{ filter: isHovered ? 'drop-shadow(0 6px 18px rgba(0,0,0,0.12))' : undefined, transition: 'all 180ms ease' }} />
-                              </g>
-                            </g>
-                          );
-                        }
-
-                        return elements;
-                      })()}
 
                       {/* Center hole / label */}
                       <circle cx={Math.max(size.w, 300) / 2} cy={Math.max(size.h, 300) / 2} r={innerRadius - 6} fill="var(--card)" />
