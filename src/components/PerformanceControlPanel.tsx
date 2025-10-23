@@ -95,54 +95,30 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
     : 0;
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-gradient-to-r from-card to-card/60 hover:shadow-md transition-all duration-200 group">
+    <div className="flex items-center justify-between p-3 rounded-lg border border-border/30 bg-card hover:bg-muted/30 transition-colors duration-200">
       <div className="flex items-center gap-3">
         <div
-          className="h-5 w-5 rounded-full border-2 border-white shadow-sm group-hover:scale-110 transition-transform duration-200"
-          style={{
-            backgroundColor: color,
-            boxShadow: `0 0 10px ${color}40`
-          }}
+          className="h-3 w-3 rounded-full"
+          style={{ backgroundColor: color }}
         />
         <div>
-          <div className="text-sm font-semibold text-foreground">{METRIC_LABELS[target.metricType]}</div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Meta: {Math.round(target.targetValue)}</span>
-            <span className="text-muted-foreground/50">•</span>
-            <span>Atual: {localValue}</span>
+          <div className="text-sm font-medium text-foreground">{METRIC_LABELS[target.metricType]}</div>
+          <div className="text-xs text-muted-foreground">
+            {localValue} / {Math.round(target.targetValue)}
           </div>
         </div>
       </div>
       
-      <div className="flex items-center gap-3">
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full transition-all duration-500 rounded-full"
-              style={{
-                width: `${progressPercentage}%`,
-                backgroundColor: color
-              }}
-            />
-          </div>
-          <Badge
-            variant="outline"
-            className="text-xs font-bold px-2 py-0.5"
-            style={{
-              borderColor: color,
-              color: color,
-              backgroundColor: `${color}10`
-            }}
-          >
-            {Math.round(progressPercentage)}%
-          </Badge>
-        </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground w-8 text-right">
+          {Math.round(progressPercentage)}%
+        </span>
         
-        <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+        <div className="flex items-center gap-0 rounded-md border border-border/50">
           <Button
             variant="ghost"
-            size="icon"
-            className="h-6 w-6 hover:bg-white/20 transition-colors"
+            size="sm"
+            className="h-7 w-7 rounded-l-md rounded-r-none hover:bg-muted/50 border-r border-border/50"
             onClick={handleDecrement}
             disabled={localValue <= 0}
           >
@@ -158,13 +134,13 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
             min={0}
             max={Math.round(target.targetValue)}
             step={1}
-            className="w-14 h-6 text-center text-xs bg-transparent border-0 focus:ring-0 focus:ring-offset-0"
+            className="w-16 h-7 text-center text-xs border-0 border-x border-border/50 rounded-none focus:ring-0"
           />
           
           <Button
             variant="ghost"
-            size="icon"
-            className="h-6 w-6 hover:bg-white/20 transition-colors"
+            size="sm"
+            className="h-7 w-7 rounded-r-md rounded-l-none hover:bg-muted/50"
             onClick={handleIncrement}
             disabled={localValue >= Math.round(target.targetValue)}
           >
