@@ -6,6 +6,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { ListingColumn } from "@/components/ListingColumn";
 import { PerformanceChallengeCard } from "@/components/PerformanceChallengeCard";
 import { PerformanceTargetsPieChart } from "@/components/PerformanceTargetsPieChart";
+import { PerformanceControlPanel } from "@/components/PerformanceControlPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -257,6 +258,7 @@ const BrokerDetails = () => {
   const [challengeForm, setChallengeForm] = useState<ChallengeFormState>(() => createEmptyChallengeForm());
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
   const [challengeOverrides, setChallengeOverrides] = useState<Record<string, PerformanceChallenge>>({});
+  const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
   const updateTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pendingTargetsRef = useRef<Record<string, PerformanceTargetInput[]>>({});
   const [salesModalOpen, setSalesModalOpen] = useState(false);
@@ -321,6 +323,13 @@ const BrokerDetails = () => {
       return mostRecent ? mostRecent.id : sortedBrokerChallenges[0].id;
     });
   }, [sortedBrokerChallenges]);
+
+// Limpa os valores dos sliders quando o desafio selecionado muda
+useEffect(() => {
+  if (selectedChallengeId) {
+    // Não limpa todos os valores, mas podemos adicionar um efeito se necessário
+  }
+}, [selectedChallengeId]);
 
   const displayChallenges = useMemo(
     () =>
@@ -658,6 +667,37 @@ const BrokerDetails = () => {
     }, 800);
   };
 
+  const handleSliderChange = (challengeId: string, targetId: string, newValue: number) => {
+    // Atualiza os valores dos sliders no estado local
+    setSliderValues(prev => ({
+      ...prev,
+      [`${challengeId}-${targetId}`]: newValue
+    }));
+  };
+
+  const getModifiedTargets = (challenge: PerformanceChallenge | null) => {
+    if (!challenge) return [];
+    
+    return challenge.targets.map(target => {
+      const sliderKey = `${challenge.id}-${target.id}`;
+      const modifiedValue = sliderValues[sliderKey];
+      
+      if (modifiedValue !== undefined) {
+        // Calcula o novo progresso com base no valor modificado
+        const newProgress = target.targetValue > 0
+          ? Math.min(Math.max((modifiedValue / target.targetValue) * 100, 0), 100)
+          : 0;
+          
+        return {
+          ...target,
+          currentValue: modifiedValue,
+          progress: newProgress
+        };
+      }
+      
+      return target;
+    });
+  };
 
   const addSale = async () => {
     if (!newSale.propertyAddress || !newSale.clientName || !newSale.saleValue || !newSale.commission || !newSale.date) {
@@ -1262,9 +1302,18 @@ const BrokerDetails = () => {
                     </CardHeader>
                     <CardContent>
                       <PerformanceTargetsPieChart
-                        targets={selectedChallenge?.targets ?? []}
+                        targets={getModifiedTargets(selectedChallenge)}
                         title={selectedChallenge ? `Progresso de "${selectedChallenge.title}"` : "Progresso dos indicadores"}
                       />
+                      
+                      {selectedChallenge && (
+                        <div className="mt-6">
+                          <PerformanceControlPanel
+                            targets={selectedChallenge.targets}
+                            onTargetChange={(targetId, newValue) => handleSliderChange(selectedChallenge.id, targetId, newValue)}
+                          />
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
