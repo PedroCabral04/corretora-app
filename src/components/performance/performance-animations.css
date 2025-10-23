@@ -1,0 +1,563 @@
+/* Animações para o sistema de desempenho */
+
+/* Animações de progresso */
+@keyframes progressFill {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: var(--progress);
+  }
+}
+
+@keyframes progressBarFill {
+  from {
+    width: 0;
+  }
+  to {
+    width: var(--progress-width);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -10px, 0);
+  }
+  70% {
+    transform: translate3d(0, -5px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+  }
+}
+
+/* Classes de animação */
+.progress-ring {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.progress-segment {
+  transition: all 0.3s ease-in-out;
+}
+
+.progress-segment:hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+.progress-animated {
+  animation: progressFill 1s ease-out forwards;
+}
+
+.progress-bar-animated {
+  animation: progressBarFill 0.8s ease-out forwards;
+}
+
+.fade-in-scale {
+  animation: fadeInScale 0.5s ease-out;
+}
+
+.slide-in-up {
+  animation: slideInUp 0.5s ease-out;
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.bounce {
+  animation: bounce 1s infinite;
+}
+
+.glow {
+  animation: glow 2s infinite;
+}
+
+/* Estados de progresso */
+.progress-empty {
+  background-color: #f1f5f9;
+}
+
+.progress-low {
+  background-color: #fee2e2;
+}
+
+.progress-medium {
+  background-color: #fef3c7;
+}
+
+.progress-high {
+  background-color: #dbeafe;
+}
+
+.progress-almost {
+  background-color: #d1fae5;
+}
+
+.progress-complete {
+  background-color: #d1fae5;
+}
+
+/* Estados de desafio */
+.challenge-active {
+  border-left: 4px solid #3b82f6;
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.05), transparent);
+}
+
+.challenge-completed {
+  border-left: 4px solid #10b981;
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent);
+}
+
+.challenge-expired {
+  border-left: 4px solid #ef4444;
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.05), transparent);
+}
+
+.challenge-cancelled {
+  border-left: 4px solid #6b7280;
+  background: linear-gradient(to right, rgba(107, 114, 128, 0.05), transparent);
+}
+
+/* Animações para cards de métrica */
+.metric-card {
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.metric-card.completed {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.metric-card.in-progress {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.metric-card.not-started {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+}
+
+/* Animações para badges de conquista */
+.achievement-badge {
+  transition: all 0.3s ease;
+}
+
+.achievement-badge:hover {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.achievement-badge.unlocked {
+  animation: bounce 1s ease-out;
+}
+
+/* Animações para gráfico de pizza */
+.chart-segment {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.chart-segment:hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+.chart-legend-item {
+  transition: all 0.2s ease;
+}
+
+.chart-legend-item:hover {
+  transform: translateX(5px);
+}
+
+/* Animações para notificações de progresso */
+.progress-notification {
+  animation: slideInUp 0.5s ease-out;
+}
+
+.progress-notification.success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.progress-notification.warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.progress-notification.error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+/* Animações para loading states */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.loading-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Animações para transições de página */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Animações para tooltips */
+.tooltip-enter {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+.tooltip-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms, transform 200ms;
+}
+
+.tooltip-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tooltip-exit-active {
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: opacity 200ms, transform 200ms;
+}
+
+/* Animações para modais */
+.modal-backdrop-enter {
+  opacity: 0;
+}
+
+.modal-backdrop-enter-active {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+
+.modal-backdrop-exit {
+  opacity: 1;
+}
+
+.modal-backdrop-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+.modal-content-enter {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.modal-content-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.modal-content-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.modal-content-exit-active {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Animações para formulários */
+.form-field-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.form-field-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Animações para botões */
+.button-hover {
+  transition: all 0.2s ease;
+}
+
+.button-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.button-hover:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Animações para cards de desafio */
+.challenge-card-enter {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
+.challenge-card-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 500ms, transform 500ms;
+}
+
+.challenge-card-exit {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.challenge-card-exit-active {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+  transition: opacity 500ms, transform 500ms;
+}
+
+/* Animações para lista de desafios */
+.challenge-list-enter {
+  opacity: 0;
+}
+
+.challenge-list-enter-active {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+
+.challenge-list-exit {
+  opacity: 1;
+}
+
+.challenge-list-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* Animações para filtros */
+.filter-enter {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+.filter-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Animações para estatísticas */
+.stat-card-enter {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.stat-card-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 500ms, transform 500ms;
+}
+
+/* Animações para gráficos */
+.chart-enter {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.chart-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 800ms, transform 800ms;
+}
+
+/* Animações para conquistas */
+.achievement-enter {
+  opacity: 0;
+  transform: rotate(-10deg) scale(0.8);
+}
+
+.achievement-enter-active {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+  transition: opacity 600ms, transform 600ms;
+}
+
+/* Animações para nível de desempenho */
+.level-up {
+  animation: bounce 1s ease-out, glow 2s ease-out;
+}
+
+/* Animações para progresso circular */
+.circular-progress {
+  position: relative;
+  display: inline-block;
+}
+
+.circular-progress svg {
+  transform: rotate(-90deg);
+}
+
+.circular-progress circle {
+  transition: stroke-dashoffset 1s ease-in-out;
+}
+
+/* Animações para métricas individuais */
+.metric-progress {
+  transition: all 0.5s ease-out;
+}
+
+.metric-progress.updated {
+  animation: pulse 1s ease-out;
+}
+
+/* Animações para alertas */
+.alert-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.alert-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.alert-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.alert-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Media queries para animações em dispositivos móveis */
+@media (max-width: 768px) {
+  .challenge-card-enter-active {
+    transition: opacity 300ms, transform 300ms;
+  }
+  
+  .stat-card-enter-active {
+    transition: opacity 300ms, transform 300ms;
+  }
+  
+  .chart-enter-active {
+    transition: opacity 500ms, transform 500ms;
+  }
+  
+  .achievement-enter-active {
+    transition: opacity 400ms, transform 400ms;
+  }
+}
+
+/* Reduzir animações para usuários que preferem menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

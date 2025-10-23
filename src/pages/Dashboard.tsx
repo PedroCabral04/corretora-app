@@ -4,15 +4,19 @@ import { MetricCard } from "@/components/MetricCard";
 import { ChartCard } from "@/components/ChartCard";
 import { GoalsSummary } from "@/components/GoalsSummary";
 import { NotificationsSummary } from "@/components/NotificationsSummary";
+import { PerformanceCard } from "@/components/performance/PerformanceCard";
+import { MetricsSummary } from "@/components/performance/MetricsSummary";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Users, TrendingUp, Home, DollarSign, TrendingDown, Calendar } from "lucide-react";
+import { Users, TrendingUp, Home, DollarSign, TrendingDown, Calendar, Trophy } from "lucide-react";
 import { useBrokers } from '@/contexts/BrokersContext';
 import { useSales } from '@/contexts/SalesContext';
 import { useListings } from '@/contexts/ListingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
 import { useTasks } from '@/contexts/TasksContext';
+import { usePerformance } from '@/contexts/PerformanceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { MetricCardSkeleton } from "@/components/ui/skeleton";
 
 const Dashboard = () => {
@@ -21,6 +25,8 @@ const Dashboard = () => {
   const { listings } = useListings();
   const { expenses } = useExpenses();
   const { tasks } = useTasks();
+  const { challenges, getChallengesByBrokerId, getActiveChallenges } = usePerformance();
+  const { user } = useAuth();
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState("all");

@@ -10,10 +10,11 @@ type AppRole = 'admin' | 'manager' | 'broker' | 'viewer';
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedRoles?: AppRole[];
+  allowedEmails?: string[];
 }
 
-export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading } = useAuth();
+export const ProtectedRoute = ({ children, allowedRoles, allowedEmails }: ProtectedRouteProps) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
   const { hasAnyRole } = usePermission();
   const location = useLocation();
 
@@ -26,6 +27,19 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && !hasAnyRole(allowedRoles)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Alert variant="destructive" className="max-w-md">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>
+            Você não tem permissão para acessar esta página.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (allowedEmails && (!user?.email || !allowedEmails.some(email => email.toLowerCase() === user.email.toLowerCase()))) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Alert variant="destructive" className="max-w-md">

@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_allowlist: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       brokers: {
         Row: {
           created_at: string
@@ -141,6 +159,197 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      feature_flags: {
+        Row: {
+          created_at: string
+          description: string | null
+          flag_key: string
+          id: string
+          is_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          flag_key: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          flag_key?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          broker_id: string
+          created_at: string
+          current_value: number
+          description: string | null
+          end_date: string
+          goal_type: string
+          id: string
+          priority: string
+          start_date: string
+          status: string
+          target_value: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          end_date: string
+          goal_type: string
+          id?: string
+          priority?: string
+          start_date: string
+          status?: string
+          target_value: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          end_date?: string
+          goal_type?: string
+          id?: string
+          priority?: string
+          start_date?: string
+          status?: string
+          target_value?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_challenges: {
+        Row: {
+          broker_id: string
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          priority: string
+          start_date: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          created_at?: string
+          description?: string | null
+          end_date: string
+          id?: string
+          priority?: string
+          start_date: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          priority?: string
+          start_date?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_challenges_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_challenges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_targets: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          current_value: number
+          id: string
+          metric_type: string
+          target_value: number
+          updated_at: string
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          metric_type: string
+          target_value: number
+          updated_at?: string
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          metric_type?: string
+          target_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_targets_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "performance_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -467,6 +676,129 @@ export type Database = {
         }
         Relationships: []
       }
+      goals: {
+        Row: {
+          id: string
+          user_id: string
+          broker_id: string
+          title: string
+          description: string | null
+          goal_type: string
+          target_value: number
+          current_value: number
+          start_date: string
+          end_date: string
+          status: string
+          priority: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          broker_id: string
+          title: string
+          description?: string | null
+          goal_type: string
+          target_value: number
+          current_value?: number
+          start_date: string
+          end_date: string
+          status?: string
+          priority?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          broker_id?: string
+          title?: string
+          description?: string | null
+          goal_type?: string
+          target_value?: number
+          current_value?: number
+          start_date?: string
+          end_date?: string
+          status?: string
+          priority?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      performance_challenges: {
+        Row: {
+          id: string
+          broker_id: string
+          title: string
+          description: string | null
+          start_date: string
+          end_date: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          broker_id: string
+          title: string
+          description?: string | null
+          start_date: string
+          end_date: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          broker_id?: string
+          title?: string
+          description?: string | null
+          start_date?: string
+          end_date?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      performance_metrics: {
+        Row: {
+          id: string
+          challenge_id: string
+          type: string
+          target_value: number
+          current_value: number
+          unit: string
+          color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          challenge_id: string
+          type: string
+          target_value: number
+          current_value?: number
+          unit: string
+          color: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          challenge_id?: string
+          type?: string
+          target_value?: number
+          current_value?: number
+          unit?: string
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -482,6 +814,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      recalculate_all_goals: {
+        Args: Record<string, never>
+        Returns: void
       }
     }
     Enums: {

@@ -2,7 +2,15 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from './AuthContext';
 
-export type GoalType = 'sales_count' | 'sales_value' | 'listings' | 'meetings' | 'tasks';
+export type GoalType =
+  | 'sales_count'
+  | 'sales_value'
+  | 'listings'
+  | 'meetings'
+  | 'tasks'
+  | 'calls'
+  | 'visits'
+  | 'in_person_visits';
 export type GoalStatus = 'active' | 'completed' | 'cancelled' | 'overdue';
 export type GoalPriority = 'low' | 'medium' | 'high';
 

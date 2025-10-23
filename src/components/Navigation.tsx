@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon, Shield, Menu, User2, Moon, Sun, Target } from "lucide-react";
+import { Users, CheckSquare, Home, LogOut, Calendar as CalendarIcon, Shield, Menu, User2, Moon, Sun, Target, Trophy } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermission } from "@/hooks/usePermission";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { isOwnerEmail } from "@/config/adminConfig";
 
 const roleLabels = {
   admin: { label: 'Admin', variant: 'destructive' as const, color: 'bg-red-500' },
@@ -83,13 +84,14 @@ export const Navigation = () => {
   };
 
   // Navegação adaptativa baseada no role
-  const navItems = role === 'broker' 
+  const navItems = role === 'broker'
     ? [
         { path: "/dashboard", label: "Meu Dashboard", icon: Home },
         { path: getBrokerProfilePath(), label: "Meu Perfil", icon: User2 },
         { path: "/tasks", label: "Minhas Tarefas", icon: CheckSquare },
         { path: "/agenda", label: "Minha Agenda", icon: CalendarIcon },
         { path: "/goals", label: "Minhas Metas", icon: Target },
+        { path: "/my-performance", label: "Meu Desempenho", icon: Trophy },
       ]
     : [
         { path: "/dashboard", label: "Dashboard", icon: Home },
@@ -97,7 +99,10 @@ export const Navigation = () => {
         { path: "/tasks", label: "Tarefas", icon: CheckSquare },
         { path: "/agenda", label: "Agenda", icon: CalendarIcon },
         { path: "/goals", label: "Metas", icon: Target },
-        ...(hasPermission('manage_users') ? [{ path: "/users", label: "Usuários", icon: Shield }] : []),
+        // Removido link direto para desempenho, agora está nos detalhes do corretor
+        ...(hasPermission('manage_users') && isOwnerEmail(user?.email)
+          ? [{ path: "/admin", label: "Admin", icon: Shield }]
+          : []),
       ];
 
   return (
