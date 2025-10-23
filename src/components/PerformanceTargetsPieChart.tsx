@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Using a custom SVG implementation instead of Recharts for full control of animation and layout
 import { VerticalProgressBar } from "@/components/VerticalProgressBar";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   PerformanceTarget,
   PerformanceMetricType,
@@ -71,6 +71,8 @@ const createDonutSegmentPath = (
   return `M ${outerStart.x} ${outerStart.y} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${outerEnd.x} ${outerEnd.y} L ${innerStart.x} ${innerStart.y} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerEnd.x} ${innerEnd.y} Z`;
 };
 
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
 // Simple hover tooltip (we'll render it manually on mouse events)
 const CustomTooltip = ({ name, target, current, percent }: { name: string; target: number; current: number; percent: number }) => (
   <div className="flex flex-col gap-1 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
@@ -122,6 +124,41 @@ export const PerformanceTargetsPieChart = ({
     });
   }, [targets]);
 
+  const [animatedPercents, setAnimatedPercents] = useState<number[]>([]);
+  const animatedPercentsRef = useRef<number[]>([]);
+
+  const updateAnimatedPercents = useCallback((values: number[]) => {
+    animatedPercentsRef.current = values;
+    setAnimatedPercents(values);
+  }, []);
+
+  useEffect(() => {
+    if (!sliceData.length) {
+      updateAnimatedPercents([]);
+      return;
+    }
+
+    const targetPercents = sliceData.map((slice) => slice.percentNormalized);
+    const startPercents = sliceData.map((_, idx) => animatedPercentsRef.current[idx] ?? 0);
+    const startTime = performance.now();
+    const duration = 900;
+    let frameId = 0;
+
+    const tick = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = easeOutCubic(progress);
+      const next = startPercents.map((from, idx) => from + (targetPercents[idx] - from) * eased);
+      updateAnimatedPercents(next);
+      if (progress < 1) {
+        frameId = requestAnimationFrame(tick);
+      }
+    };
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frameId);
+  }, [sliceData, updateAnimatedPercents]);
+
   // container measurement for responsive SVG
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 300, h: 300 });
@@ -130,17 +167,20 @@ export const PerformanceTargetsPieChart = ({
     if (!el) return;
     const update = () => setSize({ w: el.clientWidth || 300, h: el.clientHeight || 300 });
     update();
-    const RO = (window as any).ResizeObserver ?? null;
-    let observer: any = null;
-    if (RO) {
-      observer = new RO(() => update());
+    const globalWindow = window as Window & { ResizeObserver?: typeof ResizeObserver };
+    let observer: ResizeObserver | null = null;
+    if (globalWindow.ResizeObserver) {
+      observer = new globalWindow.ResizeObserver(() => update());
       observer.observe(el);
     } else {
-      window.addEventListener("resize", update);
+      globalWindow.addEventListener("resize", update);
     }
     return () => {
-      if (observer) observer.disconnect();
-      else window.removeEventListener("resize", update);
+      if (observer) {
+        observer.disconnect();
+      } else {
+        globalWindow.removeEventListener("resize", update);
+      }
     };
   }, [sliceData.length]);
 
@@ -149,7 +189,7 @@ export const PerformanceTargetsPieChart = ({
 
   // hover / tooltip state
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [tooltip, setTooltip] = useState<{ visible: boolean; left: number; top: number; entry?: SliceDatum }>({
+  const [tooltip, setTooltip] = useState<{ visible: boolean; left: number; top: number; entry?: SliceDatum; entryIndex?: number }>({
     visible: false,
     left: 0,
     top: 0,
@@ -157,7 +197,7 @@ export const PerformanceTargetsPieChart = ({
 
   // Calcular o progresso total médio de todos os indicadores
   const totalProgress = sliceData.length > 0
-    ? sliceData.reduce((sum, item) => sum + item.percent, 0) / sliceData.length
+    ? sliceData.reduce((sum, _item, idx) => sum + ((animatedPercents[idx] ?? 0) * 100), 0) / sliceData.length
     : 0;
 
   return (
@@ -181,44 +221,50 @@ export const PerformanceTargetsPieChart = ({
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-center">
             {/* Left vertical legend (vertical on the left side) */}
             <div className="flex flex-col gap-3 w-52 pr-4 justify-center">
-              {sliceData.map((s, idx) => (
-                <button
-                  key={`legend-left-${idx}`}
-                  onMouseEnter={() => setHoveredIndex(idx)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                  className={`w-full flex items-center gap-3 text-sm px-3 py-2 rounded-lg transition-all duration-200 hover:scale-[1.02] focus:outline-none ${
-                    hoveredIndex === idx
-                      ? 'bg-gradient-to-r from-muted/30 to-muted/20 shadow-md border border-border/50'
-                      : 'hover:bg-muted/10'
-                  }`}
-                  type="button"
-                >
-                  <span
-                    style={{
-                      width: 16,
-                      height: 16,
-                      background: `linear-gradient(135deg, ${s.color}, ${s.color}dd)`,
-                      borderRadius: 999,
-                      boxShadow: hoveredIndex === idx ? `0 0 12px ${s.color}40` : 'none'
-                    }}
-                    className="inline-block flex-shrink-0 transition-all duration-200"
-                  />
-                  <div className="flex flex-col text-left flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">{s.name}</span>
-                      {hoveredIndex === idx && (
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full text-white font-semibold"
-                          style={{ backgroundColor: s.color }}
-                        >
-                          {Math.round(s.percent)}%
-                        </span>
-                      )}
+              {sliceData.map((s, idx) => {
+                const animatedPercent = Math.min(Math.max(animatedPercents[idx] ?? 0, 0), 1);
+                const percentDisplay = Math.round(animatedPercent * 100);
+                const isActive = hoveredIndex === idx;
+
+                return (
+                  <button
+                    key={`legend-left-${idx}`}
+                    onMouseEnter={() => setHoveredIndex(idx)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    className={`w-full flex items-center gap-3 text-sm px-3 py-2 rounded-lg transition-all duration-200 hover:scale-[1.02] focus:outline-none ${
+                      isActive
+                        ? 'bg-gradient-to-r from-muted/30 to-muted/20 shadow-md border border-border/50'
+                        : 'hover:bg-muted/10'
+                    }`}
+                    type="button"
+                  >
+                    <span
+                      style={{
+                        width: 16,
+                        height: 16,
+                        background: `linear-gradient(135deg, ${s.color}, ${s.color}dd)`,
+                        borderRadius: 999,
+                        boxShadow: isActive ? `0 0 12px ${s.color}40` : 'none'
+                      }}
+                      className="inline-block flex-shrink-0 transition-all duration-200"
+                    />
+                    <div className="flex flex-col text-left flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">{s.name}</span>
+                        {isActive && (
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full text-white font-semibold"
+                            style={{ backgroundColor: s.color }}
+                          >
+                            {percentDisplay}%
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{s.current} de {s.target}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{s.current} de {s.target}</span>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
             {/* Gráfico de Pizza */}
             <div ref={containerRef} className="relative flex-1 w-full h-[340px] min-w-[300px]">
@@ -235,6 +281,7 @@ export const PerformanceTargetsPieChart = ({
                       {/* Background slices (muted) */}
                       {sliceData.map((entry, idx) => {
                         const isHovered = hoveredIndex === idx;
+                        const animatedPercent = Math.min(Math.max(animatedPercents[idx] ?? 0, 0), 1);
                         const backgroundPath = createDonutSegmentPath(
                           cx,
                           cy,
@@ -244,8 +291,8 @@ export const PerformanceTargetsPieChart = ({
                           entry.endAngle
                         );
 
-                        const progressAngle = entry.startAngle + (entry.endAngle - entry.startAngle) * entry.percentNormalized;
-                        const hasProgress = progressAngle > entry.startAngle;
+                        const progressAngle = entry.startAngle + (entry.endAngle - entry.startAngle) * animatedPercent;
+                        const hasProgress = animatedPercent > 0;
                         const progressPath = hasProgress
                           ? createDonutSegmentPath(
                               cx,
@@ -269,6 +316,7 @@ export const PerformanceTargetsPieChart = ({
                                   left: event.clientX - rect.left + 8,
                                   top: event.clientY - rect.top + 8,
                                   entry,
+                                  entryIndex: idx,
                                 });
                               }
                             }}
@@ -280,12 +328,13 @@ export const PerformanceTargetsPieChart = ({
                                   left: event.clientX - rect.left + 8,
                                   top: event.clientY - rect.top + 8,
                                   entry,
+                                  entryIndex: idx,
                                 });
                               }
                             }}
                             onMouseLeave={() => {
                               setHoveredIndex(null);
-                              setTooltip({ visible: false, left: 0, top: 0 });
+                              setTooltip({ visible: false, left: 0, top: 0, entry: undefined, entryIndex: undefined });
                             }}
                           >
                             <path d={backgroundPath} fill={entry.color} opacity={isHovered ? 0.14 : 0.08} />
@@ -326,7 +375,16 @@ export const PerformanceTargetsPieChart = ({
               {/* Tooltip absolute inside svg container */}
               {tooltip.visible && tooltip.entry && (
                 <div style={{ position: 'absolute', left: tooltip.left, top: tooltip.top, pointerEvents: 'none' }}>
-                  <CustomTooltip name={tooltip.entry.name} target={tooltip.entry.target} current={tooltip.entry.current} percent={tooltip.entry.percent} />
+                  <CustomTooltip
+                    name={tooltip.entry.name}
+                    target={tooltip.entry.target}
+                    current={tooltip.entry.current}
+                    percent={
+                      tooltip.entryIndex !== undefined
+                        ? (animatedPercents[tooltip.entryIndex] ?? 0) * 100
+                        : tooltip.entry.percent
+                    }
+                  />
                 </div>
               )}
             </div>
