@@ -3,7 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Goal, GoalType, GoalStatus, GoalPriority } from "@/contexts/GoalsContext";
-import { Target, TrendingUp, CalendarDays, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Target,
+  TrendingUp,
+  CalendarDays,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  Phone,
+  MapPin,
+  Building2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface GoalCardProps {
@@ -19,7 +29,10 @@ const goalTypeLabels: Record<GoalType, string> = {
   sales_value: 'Valor de Vendas',
   listings: 'Captações',
   meetings: 'Reuniões',
-  tasks: 'Tarefas'
+  tasks: 'Tarefas',
+  calls: 'Ligações',
+  visits: 'Visitas Externas',
+  in_person_visits: 'Visitas na Imobiliária'
 };
 
 const goalTypeIcons: Record<GoalType, React.ReactNode> = {
@@ -27,7 +40,10 @@ const goalTypeIcons: Record<GoalType, React.ReactNode> = {
   sales_value: <TrendingUp className="w-4 h-4" />,
   listings: <Target className="w-4 h-4" />,
   meetings: <CalendarDays className="w-4 h-4" />,
-  tasks: <CheckCircle2 className="w-4 h-4" />
+  tasks: <CheckCircle2 className="w-4 h-4" />,
+  calls: <Phone className="w-4 h-4" />,
+  visits: <MapPin className="w-4 h-4" />,
+  in_person_visits: <Building2 className="w-4 h-4" />
 };
 
 const statusColors: Record<GoalStatus, string> = {

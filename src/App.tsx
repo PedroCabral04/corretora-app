@@ -14,6 +14,7 @@ import { MeetingsProvider } from "@/contexts/MeetingsContext";
 import { ExpensesProvider } from "@/contexts/ExpensesContext";
 import { ClientsProvider } from "@/contexts/ClientsContext";
 import { GoalsProvider } from "@/contexts/GoalsContext";
+import { PerformanceChallengesProvider } from "@/contexts/PerformanceChallengesContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminProvider } from "@/contexts/AdminContext";
@@ -61,7 +62,8 @@ const App = () => (
                     <ExpensesProvider>
                       <ClientsProvider>
                         <GoalsProvider>
-                          <NotificationsProvider>
+                          <PerformanceChallengesProvider>
+                            <NotificationsProvider>
                             <TooltipProvider>
                               <Toaster />
                               <Sonner />
@@ -120,7 +122,8 @@ const App = () => (
                         </BrowserRouter>
                       </TooltipProvider>
                     </NotificationsProvider>
-                  </GoalsProvider>
+                  </PerformanceChallengesProvider>
+                </GoalsProvider>
                 </ClientsProvider>
               </ExpensesProvider>
             </MeetingsProvider>

@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MetricCard } from "@/components/MetricCard";
 import { ListingColumn } from "@/components/ListingColumn";
+import { PerformanceChallengeCard } from "@/components/PerformanceChallengeCard";
+import { PerformanceTargetsPieChart } from "@/components/PerformanceTargetsPieChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +24,14 @@ import { useListings, DetailedListingStatus } from '@/contexts/ListingsContext';
 import { useSales } from '@/contexts/SalesContext';
 import { useMeetings } from '@/contexts/MeetingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
+import {
+  usePerformanceChallenges,
+  PerformanceChallenge,
+  PerformanceChallengePriority,
+  PerformanceChallengeStatus,
+  PerformanceMetricType,
+  PerformanceTargetInput,
+} from '@/contexts/PerformanceChallengesContext';
 import { TaskBoard } from '@/components/tasks/TaskBoard';
 import {
   ArrowLeft,
@@ -32,6 +42,23 @@ import {
   Trash2,
   Edit
 } from "lucide-react";
+
+type ChallengeTargetForm = {
+  id?: string;
+  metricType: PerformanceMetricType;
+  targetValue: string;
+  currentValue: string;
+};
+
+type ChallengeFormState = {
+  title: string;
+  description: string;
+  status: PerformanceChallengeStatus;
+  priority: PerformanceChallengePriority;
+  startDate: string;
+  endDate: string;
+  targets: ChallengeTargetForm[];
+};
 
 const BrokerDetails = () => {
   const { brokerId } = useParams();
@@ -56,6 +83,15 @@ const BrokerDetails = () => {
   const { sales, createSale, updateSale, deleteSale, getSalesByBrokerId } = useSales();
   const { meetings, createMeeting, updateMeeting, completeMeeting, deleteMeeting, getMeetingsByBrokerId } = useMeetings();
   const { expenses, createExpense, updateExpense, deleteExpense, getExpensesByBrokerId } = useExpenses();
+  const {
+    challenges,
+    isLoading: challengesLoading,
+    createChallenge,
+    updateChallenge,
+    deleteChallenge,
+    getChallengesByBrokerId,
+    refreshChallenges,
+  } = usePerformanceChallenges();
 
   const brokerFromStore = brokerId ? getBrokerById(brokerId) : undefined;
 
@@ -81,6 +117,15 @@ const BrokerDetails = () => {
   // Filter clients for this broker
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
   const brokerListings = brokerId ? getListingsByBrokerId(brokerId) : [];
+  const brokerChallenges = brokerId ? getChallengesByBrokerId(brokerId) : [];
+  const sortedBrokerChallenges = [...brokerChallenges].sort((a, b) => {
+    const endA = new Date(a.endDate).getTime();
+    const endB = new Date(b.endDate).getTime();
+    if (Number.isNaN(endA) || Number.isNaN(endB)) return 0;
+    return endA - endB;
+  });
+  const canManagePerformance = user?.role === 'manager' || user?.role === 'admin';
+  const canUpdatePerformanceProgress = canManagePerformance || isOwnProfile;
   // Total de TODAS as captações (manuais dos 4 status + detalhadas)
   // Ignora registros antigos com status 'Agregado' (sistema antigo)
   const totalListingsCount = brokerListings
@@ -91,6 +136,63 @@ const BrokerDetails = () => {
       const safeQuantity = quantity >= 0 ? quantity : 0;
       return acc + safeQuantity;
     }, 0);
+  const metricOptions: PerformanceMetricType[] = [
+    'calls',
+    'visits',
+    'in_person_visits',
+    'sales',
+    'sales_value',
+    'listings',
+    'meetings',
+    'tasks',
+  ];
+
+  const metricLabels: Record<PerformanceMetricType, string> = {
+    sales: 'Vendas',
+    sales_value: 'Valor Vendido',
+    listings: 'Captações',
+    meetings: 'Reuniões',
+    tasks: 'Tarefas',
+    calls: 'Ligações',
+    visits: 'Visitas Externas',
+    in_person_visits: 'Visitas na Imobiliária',
+  };
+
+  const statusOptions: Array<{ value: PerformanceChallengeStatus; label: string }> = [
+    { value: 'active', label: 'Em andamento' },
+    { value: 'completed', label: 'Concluído' },
+    { value: 'overdue', label: 'Atrasado' },
+    { value: 'cancelled', label: 'Cancelado' },
+  ];
+
+  const priorityOptions: Array<{ value: PerformanceChallengePriority; label: string }> = [
+    { value: 'low', label: 'Baixa' },
+    { value: 'medium', label: 'Média' },
+    { value: 'high', label: 'Alta' },
+  ];
+
+  const createEmptyTarget = (): ChallengeTargetForm => ({
+    metricType: 'calls',
+    targetValue: '',
+    currentValue: '',
+  });
+
+  const createEmptyChallengeForm = (): ChallengeFormState => {
+    const today = new Date();
+    const startDate = today.toISOString().split('T')[0];
+    const endDateObj = new Date(today);
+    endDateObj.setDate(endDateObj.getDate() + 7);
+
+    return {
+      title: '',
+      description: '',
+      status: 'active',
+      priority: 'medium',
+      startDate,
+      endDate: endDateObj.toISOString().split('T')[0],
+      targets: [createEmptyTarget()],
+    };
+  };
     
   // Carrega os dados dos contextos quando o brokerId ou os dados mudam
   useEffect(() => {
@@ -150,6 +252,13 @@ const BrokerDetails = () => {
   }, [brokerId, listings, sales, meetings, expenses, getListingsByBrokerId, getSalesByBrokerId, getMeetingsByBrokerId, getExpensesByBrokerId]);
 
   // Modal states
+  const [performanceModalOpen, setPerformanceModalOpen] = useState(false);
+  const [editingChallenge, setEditingChallenge] = useState<PerformanceChallenge | null>(null);
+  const [challengeForm, setChallengeForm] = useState<ChallengeFormState>(() => createEmptyChallengeForm());
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
+  const [challengeOverrides, setChallengeOverrides] = useState<Record<string, PerformanceChallenge>>({});
+  const updateTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingTargetsRef = useRef<Record<string, PerformanceTargetInput[]>>({});
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [listingsModalOpen, setListingsModalOpen] = useState(false);
   const [meetingsModalOpen, setMeetingsModalOpen] = useState(false);
@@ -185,6 +294,370 @@ const BrokerDetails = () => {
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [editingMeetingId, setEditingMeetingId] = useState<string | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sortedBrokerChallenges.length === 0) {
+      setSelectedChallengeId(null);
+      return;
+    }
+
+    setSelectedChallengeId((previous) => {
+      const availableIds = new Set(sortedBrokerChallenges.map((challenge) => challenge.id));
+      if (previous && availableIds.has(previous)) {
+        return previous;
+      }
+
+      const latestActive = [...sortedBrokerChallenges]
+        .filter((challenge) => challenge.status === 'active')
+        .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0];
+
+      if (latestActive) {
+        return latestActive.id;
+      }
+
+      const mostRecent = [...sortedBrokerChallenges]
+        .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
+
+      return mostRecent ? mostRecent.id : sortedBrokerChallenges[0].id;
+    });
+  }, [sortedBrokerChallenges]);
+
+  const displayChallenges = useMemo(
+    () =>
+      sortedBrokerChallenges.map((challenge) =>
+        challengeOverrides[challenge.id] ? challengeOverrides[challenge.id] : challenge,
+      ),
+    [sortedBrokerChallenges, challengeOverrides],
+  );
+
+  const selectedChallenge = selectedChallengeId
+    ? displayChallenges.find((challenge) => challenge.id === selectedChallengeId) ?? null
+    : null;
+
+  const firstDisplayChallengeId = displayChallenges.length > 0 ? displayChallenges[0].id : undefined;
+
+  useEffect(() => () => {
+    Object.values(updateTimeoutsRef.current).forEach((timeoutId) => clearTimeout(timeoutId));
+  }, []);
+
+  useEffect(() => {
+    if (Object.keys(challengeOverrides).length === 0) {
+      return;
+    }
+
+    const availableIds = new Set(sortedBrokerChallenges.map((challenge) => challenge.id));
+    const idsToRemove = Object.keys(challengeOverrides).filter((id) => !availableIds.has(id));
+
+    if (idsToRemove.length === 0) {
+      return;
+    }
+
+    setChallengeOverrides((prev) => {
+      const next = { ...prev };
+      idsToRemove.forEach((id) => delete next[id]);
+      return next;
+    });
+
+    idsToRemove.forEach((id) => {
+      if (updateTimeoutsRef.current[id]) {
+        clearTimeout(updateTimeoutsRef.current[id]);
+        delete updateTimeoutsRef.current[id];
+      }
+      delete pendingTargetsRef.current[id];
+    });
+  }, [challengeOverrides, sortedBrokerChallenges]);
+
+  const resetChallengeForm = () => {
+    setChallengeForm(createEmptyChallengeForm());
+    setEditingChallenge(null);
+  };
+
+  const handleOpenPerformanceModal = (challenge?: PerformanceChallenge) => {
+    if (!canManagePerformance) return;
+
+    if (challenge) {
+      setEditingChallenge(challenge);
+      setChallengeForm({
+        title: challenge.title,
+        description: challenge.description || '',
+        status: challenge.status,
+        priority: challenge.priority,
+        startDate: challenge.startDate,
+        endDate: challenge.endDate,
+        targets: challenge.targets.map((target) => ({
+          id: target.id,
+          metricType: target.metricType,
+          targetValue: target.targetValue.toString(),
+          currentValue: target.currentValue.toString(),
+        })),
+      });
+      setPerformanceModalOpen(true);
+      return;
+    }
+
+    resetChallengeForm();
+    setPerformanceModalOpen(true);
+  };
+
+  const handleClosePerformanceModal = () => {
+    setPerformanceModalOpen(false);
+    resetChallengeForm();
+  };
+
+  const handleAddTargetRow = () => {
+    setChallengeForm((prev) => ({
+      ...prev,
+      targets: [...prev.targets, createEmptyTarget()],
+    }));
+  };
+
+  const handleRemoveTargetRow = (index: number) => {
+    setChallengeForm((prev) => {
+      if (prev.targets.length <= 1) {
+        return prev;
+      }
+
+      const nextTargets = prev.targets.filter((_, idx) => idx !== index);
+      return {
+        ...prev,
+        targets: nextTargets,
+      };
+    });
+  };
+
+  const handleTargetFieldChange = (
+    index: number,
+    field: keyof ChallengeTargetForm,
+    value: string,
+  ) => {
+    setChallengeForm((prev) => {
+      const nextTargets = [...prev.targets];
+      nextTargets[index] = {
+        ...nextTargets[index],
+        [field]: field === 'metricType' ? (value as PerformanceMetricType) : value,
+      } as ChallengeTargetForm;
+
+      return {
+        ...prev,
+        targets: nextTargets,
+      };
+    });
+  };
+
+  const normalizeTargets = (): PerformanceTargetInput[] =>
+    challengeForm.targets
+      .map((target) => ({
+        id: target.id,
+        metricType: target.metricType,
+        targetValue: Number(target.targetValue),
+        currentValue: target.currentValue ? Number(target.currentValue) : 0,
+      }))
+      .filter((target) => Number.isFinite(target.targetValue) && target.targetValue > 0);
+
+  const handlePerformanceSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!canManagePerformance) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para alterar desafios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!brokerId) {
+      toast({ title: "Erro", description: "ID do corretor não encontrado", variant: "destructive" });
+      return;
+    }
+
+    if (!challengeForm.title || !challengeForm.startDate || !challengeForm.endDate) {
+      toast({ title: "Erro", description: "Preencha os campos obrigatórios", variant: "destructive" });
+      return;
+    }
+
+    const targets = normalizeTargets();
+
+    if (targets.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Adicione pelo menos um indicador com meta válida",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (editingChallenge) {
+        await updateChallenge(editingChallenge.id, {
+          title: challengeForm.title,
+          description: challengeForm.description || null,
+          status: challengeForm.status,
+          priority: challengeForm.priority,
+          startDate: challengeForm.startDate,
+          endDate: challengeForm.endDate,
+          targets,
+        });
+
+        toast({ title: "Sucesso", description: "Desafio atualizado com sucesso!" });
+      } else {
+        const created = await createChallenge({
+          brokerId,
+          title: challengeForm.title,
+          description: challengeForm.description || undefined,
+          status: challengeForm.status,
+          priority: challengeForm.priority,
+          startDate: challengeForm.startDate,
+          endDate: challengeForm.endDate,
+          targets,
+        });
+
+        setSelectedChallengeId(created.id);
+        toast({ title: "Sucesso", description: "Desafio criado com sucesso!" });
+      }
+
+      handleClosePerformanceModal();
+    } catch (error) {
+      console.error("Erro ao salvar desafio de desempenho:", error);
+      toast({ title: "Erro", description: "Não foi possível salvar o desafio", variant: "destructive" });
+    }
+  };
+
+  const handleDeletePerformanceChallenge = async (id: string) => {
+    if (!canManagePerformance) return;
+    if (!confirm("Tem certeza que deseja excluir este desafio?")) return;
+
+    try {
+      await deleteChallenge(id);
+
+      if (selectedChallengeId === id) {
+        setSelectedChallengeId(null);
+      }
+
+      if (updateTimeoutsRef.current[id]) {
+        clearTimeout(updateTimeoutsRef.current[id]);
+        delete updateTimeoutsRef.current[id];
+      }
+
+      delete pendingTargetsRef.current[id];
+
+      setChallengeOverrides((prev) => {
+        if (!(id in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+
+      toast({ title: "Sucesso", description: "Desafio excluído com sucesso!" });
+    } catch (error) {
+      console.error("Erro ao excluir desafio de desempenho:", error);
+      toast({ title: "Erro", description: "Não foi possível excluir o desafio", variant: "destructive" });
+    }
+  };
+
+  const handleAdjustChallengeTarget = (challengeId: string, targetId: string, delta: number) => {
+    if (!canUpdatePerformanceProgress) {
+      toast({ title: "Acesso negado", description: "Você não pode ajustar o progresso deste indicador", variant: "destructive" });
+      return;
+    }
+
+    const baseChallenge = challengeOverrides[challengeId]
+      ?? sortedBrokerChallenges.find((item) => item.id === challengeId);
+
+    if (!baseChallenge) {
+      toast({ title: "Erro", description: "Indicador não encontrado para ajuste", variant: "destructive" });
+      return;
+    }
+
+    let hasChanged = false;
+
+    const updatedTargetsDetailed = baseChallenge.targets.map((item) => {
+      const proposed = item.id === targetId
+        ? Number((item.currentValue + delta).toFixed(2))
+        : item.currentValue;
+
+      const clamped = Math.max(0, Math.min(item.targetValue, proposed));
+      const progress = item.targetValue > 0
+        ? Math.min(Math.max(clamped / item.targetValue, 0), 1) * 100
+        : 0;
+
+      if (item.id === targetId && clamped !== item.currentValue) {
+        hasChanged = true;
+      }
+
+      return {
+        ...item,
+        currentValue: clamped,
+        progress,
+      };
+    });
+
+    if (!hasChanged) {
+      return;
+    }
+
+    const relevantTargets = updatedTargetsDetailed.filter((target) => target.targetValue > 0);
+    const overallProgress = relevantTargets.length === 0
+      ? 0
+      : relevantTargets.reduce((sum, target) => sum + target.progress, 0) / relevantTargets.length;
+
+    const isOverdue = overallProgress < 100
+      && baseChallenge.status !== 'completed'
+      && new Date(baseChallenge.endDate) < new Date();
+
+    const optimisticChallenge: PerformanceChallenge = {
+      ...baseChallenge,
+      targets: updatedTargetsDetailed,
+      overallProgress,
+      isOverdue,
+    };
+
+    setChallengeOverrides((prev) => ({ ...prev, [challengeId]: optimisticChallenge }));
+
+    pendingTargetsRef.current[challengeId] = updatedTargetsDetailed.map((target) => ({
+      id: target.id,
+      metricType: target.metricType,
+      targetValue: target.targetValue,
+      currentValue: Number(target.currentValue.toFixed(2)),
+    }));
+
+    if (updateTimeoutsRef.current[challengeId]) {
+      clearTimeout(updateTimeoutsRef.current[challengeId]);
+    }
+
+    updateTimeoutsRef.current[challengeId] = setTimeout(async () => {
+      const payload = pendingTargetsRef.current[challengeId];
+      if (!payload) {
+        delete updateTimeoutsRef.current[challengeId];
+        return;
+      }
+
+      try {
+        await updateChallenge(challengeId, { targets: payload });
+        delete pendingTargetsRef.current[challengeId];
+        setChallengeOverrides((prev) => {
+          const next = { ...prev };
+          delete next[challengeId];
+          return next;
+        });
+      } catch (error) {
+        console.error("Erro ao ajustar indicador de desempenho:", error);
+        toast({ title: "Erro", description: "Não foi possível atualizar o progresso", variant: "destructive" });
+        delete pendingTargetsRef.current[challengeId];
+        setChallengeOverrides((prev) => {
+          const next = { ...prev };
+          delete next[challengeId];
+          return next;
+        });
+        await refreshChallenges();
+      } finally {
+        delete updateTimeoutsRef.current[challengeId];
+      }
+    }, 800);
+  };
+
 
   const addSale = async () => {
     if (!newSale.propertyAddress || !newSale.clientName || !newSale.saleValue || !newSale.commission || !newSale.date) {
@@ -696,7 +1169,8 @@ const BrokerDetails = () => {
 
         {/* Tabs com Detalhes */}
         <Tabs defaultValue="clients" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="performance">Desempenho</TabsTrigger>
             <TabsTrigger value="clients">Clientes</TabsTrigger>
             <TabsTrigger value="sales">Vendas</TabsTrigger>
             <TabsTrigger value="listings">Captações</TabsTrigger>
@@ -704,6 +1178,115 @@ const BrokerDetails = () => {
             <TabsTrigger value="expenses">Gastos</TabsTrigger>
             <TabsTrigger value="tasks">Tarefas</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="performance" className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Desafios de Desempenho</h2>
+                <p className="text-sm text-muted-foreground">
+                  Acompanhe indicadores combinados que o gerente definiu para este corretor.
+                </p>
+              </div>
+              {canManagePerformance && (
+                <Button size="sm" className="gap-2" onClick={() => handleOpenPerformanceModal()}>
+                  <Plus className="h-4 w-4" />
+                  Novo desafio
+                </Button>
+              )}
+            </div>
+
+            {challengesLoading ? (
+              <Card>
+                <CardContent className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+                  Carregando desafios...
+                </CardContent>
+              </Card>
+            ) : sortedBrokerChallenges.length === 0 ? (
+              <Card className="p-10 text-center text-sm text-muted-foreground">
+                <p>Nenhum desafio cadastrado para este corretor no momento.</p>
+                {canManagePerformance && (
+                  <Button size="sm" className="mt-4 gap-2" onClick={() => handleOpenPerformanceModal()}>
+                    <Plus className="h-4 w-4" />
+                    Criar primeiro desafio
+                  </Button>
+                )}
+              </Card>
+            ) : (
+              <Tabs defaultValue="overview" className="space-y-4">
+                <TabsList className="w-full justify-start rounded-xl bg-muted/40 p-1 text-muted-foreground">
+                  <TabsTrigger
+                    value="overview"
+                    className="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+                  >
+                    Resumo
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="history"
+                    className="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+                  >
+                    Histórico
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview" className="space-y-4">
+                  <Card>
+                    <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex flex-col gap-1">
+                        <CardTitle className="text-base font-medium">Desafio em destaque</CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          Selecione para analisar o progresso por indicador.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Select
+                          value={selectedChallengeId ?? firstDisplayChallengeId ?? ""}
+                          onValueChange={(value) => setSelectedChallengeId(value)}
+                        >
+                          <SelectTrigger className="w-[240px]">
+                            <SelectValue placeholder="Selecione um desafio" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {displayChallenges.map((challenge) => (
+                              <SelectItem key={challenge.id} value={challenge.id}>
+                                {challenge.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedChallenge && (
+                          <Badge variant="outline" className="text-xs">
+                            {Math.round(selectedChallenge.overallProgress)}% concluído
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <PerformanceTargetsPieChart
+                        targets={selectedChallenge?.targets ?? []}
+                        title={selectedChallenge ? `Progresso de "${selectedChallenge.title}"` : "Progresso dos indicadores"}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="history">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {displayChallenges.map((challenge) => (
+                      <PerformanceChallengeCard
+                        key={challenge.id}
+                        challenge={challenge}
+                        onEdit={canManagePerformance ? handleOpenPerformanceModal : undefined}
+                        onDelete={canManagePerformance ? handleDeletePerformanceChallenge : undefined}
+                        onSelect={() => setSelectedChallengeId(challenge.id)}
+                        isSelected={challenge.id === selectedChallengeId}
+                        onAdjustTarget={canUpdatePerformanceProgress ? handleAdjustChallengeTarget : undefined}
+                      />
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+          </TabsContent>
 
           <TabsContent value="clients">
             <Card>
@@ -1472,6 +2055,221 @@ const BrokerDetails = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Dialog
+          open={performanceModalOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              handleClosePerformanceModal();
+            }
+          }}
+        >
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editingChallenge ? "Editar desafio" : "Novo desafio"}
+              </DialogTitle>
+              <DialogDescription>
+                Defina metas customizadas para acompanhar o desempenho deste corretor.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handlePerformanceSubmit} className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <Label htmlFor="challenge-title">Título *</Label>
+                  <Input
+                    id="challenge-title"
+                    value={challengeForm.title}
+                    onChange={(event) =>
+                      setChallengeForm((prev) => ({ ...prev, title: event.target.value }))
+                    }
+                    placeholder="Ex: 5 ligações qualificadas"
+                    required
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <Label htmlFor="challenge-description">Descrição</Label>
+                  <Textarea
+                    id="challenge-description"
+                    value={challengeForm.description}
+                    onChange={(event) =>
+                      setChallengeForm((prev) => ({ ...prev, description: event.target.value }))
+                    }
+                    placeholder="Contextualize o desafio para o corretor..."
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="challenge-status">Status</Label>
+                  <Select
+                    value={challengeForm.status}
+                    onValueChange={(value: PerformanceChallengeStatus) =>
+                      setChallengeForm((prev) => ({ ...prev, status: value }))
+                    }
+                  >
+                    <SelectTrigger id="challenge-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="challenge-priority">Prioridade</Label>
+                  <Select
+                    value={challengeForm.priority}
+                    onValueChange={(value: PerformanceChallengePriority) =>
+                      setChallengeForm((prev) => ({ ...prev, priority: value }))
+                    }
+                  >
+                    <SelectTrigger id="challenge-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {priorityOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="challenge-start">Data de início *</Label>
+                  <Input
+                    id="challenge-start"
+                    type="date"
+                    value={challengeForm.startDate}
+                    onChange={(event) =>
+                      setChallengeForm((prev) => ({ ...prev, startDate: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="challenge-end">Data de término *</Label>
+                  <Input
+                    id="challenge-end"
+                    type="date"
+                    value={challengeForm.endDate}
+                    onChange={(event) =>
+                      setChallengeForm((prev) => ({ ...prev, endDate: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">Indicadores de desempenho</p>
+                    <p className="text-xs text-muted-foreground">
+                      Combine múltiplas métricas para compor o desafio deste corretor.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddTargetRow}>
+                    Adicionar indicador
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {challengeForm.targets.map((target, index) => (
+                    <div
+                      key={target.id ?? index}
+                      className="grid gap-3 rounded-lg border p-4 md:grid-cols-[1.3fr_1fr_1fr_auto]"
+                    >
+                      <div>
+                        <Label htmlFor={`target-metric-${index}`}>Métrica *</Label>
+                        <Select
+                          value={target.metricType}
+                          onValueChange={(value) =>
+                            handleTargetFieldChange(index, 'metricType', value)
+                          }
+                        >
+                          <SelectTrigger id={`target-metric-${index}`}>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {metricOptions.map((option) => (
+                              <SelectItem key={option} value={option}>
+                                {metricLabels[option]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`target-value-${index}`}>Meta planejada *</Label>
+                        <Input
+                          id={`target-value-${index}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={target.targetValue}
+                          onChange={(event) =>
+                            handleTargetFieldChange(index, 'targetValue', event.target.value)
+                          }
+                          placeholder="0"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`current-value-${index}`}>Progresso atual</Label>
+                        <Input
+                          id={`current-value-${index}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={target.currentValue}
+                          onChange={(event) =>
+                            handleTargetFieldChange(index, 'currentValue', event.target.value)
+                          }
+                          placeholder="0"
+                        />
+                      </div>
+
+                      <div className="flex items-end justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveTargetRow(index)}
+                          disabled={challengeForm.targets.length <= 1}
+                          aria-label="Remover indicador"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleClosePerformanceModal}>
+                  Cancelar
+                </Button>
+                <Button type="submit">
+                  {editingChallenge ? "Salvar alterações" : "Criar desafio"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

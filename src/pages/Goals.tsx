@@ -3,6 +3,7 @@ import { useGoals, Goal, GoalType, GoalPriority } from "@/contexts/GoalsContext"
 import { useBrokers } from "@/contexts/BrokersContext";
 import { Navigation } from "@/components/Navigation";
 import { GoalCard } from "@/components/GoalCard";
+import { GoalProgressPieChart } from "@/components/GoalProgressPieChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -250,6 +251,8 @@ export default function Goals() {
         </Card>
       </div>
 
+  <GoalProgressPieChart goals={activeGoals} />
+
       {/* Tabs and Goals List */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
@@ -373,6 +376,9 @@ export default function Goals() {
                     <SelectItem value="listings">Captações</SelectItem>
                     <SelectItem value="meetings">Reuniões</SelectItem>
                     <SelectItem value="tasks">Tarefas</SelectItem>
+                    <SelectItem value="calls">Ligações</SelectItem>
+                    <SelectItem value="visits">Visitas Externas</SelectItem>
+                    <SelectItem value="in_person_visits">Visitas na Imobiliária</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
