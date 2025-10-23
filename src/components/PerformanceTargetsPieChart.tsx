@@ -15,7 +15,7 @@ interface PerformanceTargetsPieChartProps {
 
 const METRIC_LABELS: Record<PerformanceMetricType, string> = {
   sales: "Vendas",
-  sales_value: "Valor Vendido",
+  sales_value: "Valor Vendido (R$)",
   listings: "Captações",
   meetings: "Reuniões",
   tasks: "Tarefas",
@@ -44,6 +44,7 @@ interface SliceDatum {
   color: string;
   startAngle: number;
   endAngle: number;
+  metricType: PerformanceMetricType;
 }
 
 const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDeg: number) => {
@@ -74,22 +75,31 @@ const createDonutSegmentPath = (
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 // Simple hover tooltip (we'll render it manually on mouse events)
-const CustomTooltip = ({ name, target, current, percent }: { name: string; target: number; current: number; percent: number }) => (
-  <div className="flex flex-col gap-1 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
-    <div className="font-semibold text-foreground">{name}</div>
-    <div className="grid grid-cols-2 gap-2">
-      <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
-        <span className="block font-medium text-foreground">Planejado</span>
-        <span className="text-muted-foreground">{Math.round(target)}</span>
+const CustomTooltip = ({ name, target, current, percent, isCurrency }: { name: string; target: number; current: number; percent: number; isCurrency?: boolean }) => {
+  const formatValue = (value: number) => {
+    if (isCurrency) {
+      return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    }
+    return Math.round(value).toString();
+  };
+
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border bg-card/95 p-3 text-xs shadow-lg backdrop-blur">
+      <div className="font-semibold text-foreground">{name}</div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
+          <span className="block font-medium text-foreground">Planejado</span>
+          <span className="text-muted-foreground">{formatValue(target)}</span>
+        </div>
+        <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
+          <span className="block font-medium text-foreground">Atual</span>
+          <span className="text-muted-foreground">{formatValue(current)}</span>
+        </div>
       </div>
-      <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px]">
-        <span className="block font-medium text-foreground">Atual</span>
-        <span className="text-muted-foreground">{Math.round(current)}</span>
-      </div>
+      <div className="text-[11px] text-muted-foreground">Progresso: {Math.round(percent)}%</div>
     </div>
-    <div className="text-[11px] text-muted-foreground">Progresso: {Math.round(percent)}%</div>
-  </div>
-);
+  );
+};
 
 export const PerformanceTargetsPieChart = ({
   targets,
@@ -98,18 +108,19 @@ export const PerformanceTargetsPieChart = ({
 }: PerformanceTargetsPieChartProps) => {
   const sliceData = useMemo<SliceDatum[]>(() => {
     const validTargets = targets.filter((target) => target.targetValue > 0);
-    const totalForAngles =
-      validTargets.reduce((sum, target) => sum + Math.max(1, Math.round(target.targetValue)), 0) || 1;
+    
+    // Distribuir ângulos igualmente entre as métricas, independente dos valores
+    const totalMetrics = validTargets.length;
+    const anglePerMetric = totalMetrics > 0 ? 360 / totalMetrics : 0;
 
-    let cursor = 0;
     return validTargets.map((target, index) => {
       const currentInt = Math.round(target.currentValue);
       const targetInt = Math.round(target.targetValue);
       const percentNormalized = targetInt > 0 ? Math.min(Math.max(currentInt / targetInt, 0), 1) : 0;
-      const valueForAngles = Math.max(1, targetInt);
-      const startAngle = (cursor / totalForAngles) * 360;
-      const endAngle = ((cursor + valueForAngles) / totalForAngles) * 360;
-      cursor += valueForAngles;
+      
+      // Cada métrica ocupa o mesmo espaço angular
+      const startAngle = index * anglePerMetric;
+      const endAngle = (index + 1) * anglePerMetric;
 
       return {
         name: METRIC_LABELS[target.metricType] ?? target.metricType,
@@ -120,6 +131,7 @@ export const PerformanceTargetsPieChart = ({
         color: COLOR_PALETTE[index % COLOR_PALETTE.length],
         startAngle,
         endAngle,
+        metricType: target.metricType,
       };
     });
   }, [targets]);
@@ -200,6 +212,19 @@ export const PerformanceTargetsPieChart = ({
     ? sliceData.reduce((sum, _item, idx) => sum + ((animatedPercents[idx] ?? 0) * 100), 0) / sliceData.length
     : 0;
 
+  // Formatar o progresso: só mostra 100% se for exatamente 100, senão arredonda para baixo na casa decimal
+  let formattedProgress: string;
+  if (totalProgress === 0) {
+    formattedProgress = "0";
+  } else if (totalProgress === 100) {
+    formattedProgress = "100";
+  } else if (totalProgress > 99.95) {
+    // Se for maior que 99.95 mas menor que 100, mostra 99.9
+    formattedProgress = "99.9";
+  } else {
+    formattedProgress = (Math.floor(totalProgress * 10) / 10).toFixed(1);
+  }
+
   return (
     <Card className={`${className} border-0 shadow-lg bg-gradient-to-br from-card to-card/80`}>
       <CardHeader className="space-y-2 pb-4">
@@ -225,6 +250,14 @@ export const PerformanceTargetsPieChart = ({
                 const animatedPercent = Math.min(Math.max(animatedPercents[idx] ?? 0, 0), 1);
                 const percentDisplay = Math.round(animatedPercent * 100);
                 const isActive = hoveredIndex === idx;
+                const isCurrency = s.metricType === 'sales_value';
+                
+                const formatValue = (value: number) => {
+                  if (isCurrency) {
+                    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                  }
+                  return value.toString();
+                };
 
                 return (
                   <button
@@ -260,7 +293,7 @@ export const PerformanceTargetsPieChart = ({
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground">{s.current} de {s.target}</span>
+                      <span className="text-xs text-muted-foreground">{formatValue(s.current)} de {formatValue(s.target)}</span>
                     </div>
                   </button>
                 );
@@ -363,7 +396,7 @@ export const PerformanceTargetsPieChart = ({
                       <foreignObject x={cx - innerRadius + 6} y={cy - 22} width={(innerRadius - 6) * 2} height={44}>
                         <div className="flex items-center justify-center text-center">
                           <div>
-                            <div className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{Math.round(totalProgress)}%</div>
+                            <div className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{formattedProgress}%</div>
                             <div className="text-xs text-muted-foreground">Progresso Total</div>
                           </div>
                         </div>
@@ -387,6 +420,7 @@ export const PerformanceTargetsPieChart = ({
                         ? (animatedPercents[tooltip.entryIndex] ?? 0) * 100
                         : tooltip.entry.percent
                     }
+                    isCurrency={tooltip.entry.metricType === 'sales_value'}
                   />
                 </div>
               )}
