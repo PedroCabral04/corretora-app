@@ -42,6 +42,20 @@ vi.mock("@/components/Navigation", () => ({
   Navigation: () => <nav data-testid="navigation">Navigation</nav>,
 }));
 
+// Mock PerformanceChallengesContext to prevent hook errors when other components import BrokerDetails
+vi.mock("@/contexts/PerformanceChallengesContext", () => ({
+  usePerformanceChallenges: () => ({
+    challenges: [],
+    isLoading: false,
+    createChallenge: vi.fn(),
+    updateChallenge: vi.fn(),
+    deleteChallenge: vi.fn(),
+    getChallengesByBrokerId: (brokerId: string) => [],
+    refreshChallenges: vi.fn(),
+  }),
+  PerformanceChallengesProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 interface MockBroker {
   id: string;
   name: string;

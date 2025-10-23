@@ -190,6 +190,167 @@ export type Database = {
         }
         Relationships: []
       }
+      goals: {
+        Row: {
+          broker_id: string
+          created_at: string
+          current_value: number
+          description: string | null
+          end_date: string
+          goal_type: string
+          id: string
+          priority: string
+          start_date: string
+          status: string
+          target_value: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          end_date: string
+          goal_type: string
+          id?: string
+          priority?: string
+          start_date: string
+          status?: string
+          target_value: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          end_date?: string
+          goal_type?: string
+          id?: string
+          priority?: string
+          start_date?: string
+          status?: string
+          target_value?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_challenges: {
+        Row: {
+          broker_id: string
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          priority: string
+          start_date: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          broker_id: string
+          created_at?: string
+          description?: string | null
+          end_date: string
+          id?: string
+          priority?: string
+          start_date: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          broker_id?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          priority?: string
+          start_date?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_challenges_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_challenges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_targets: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          current_value: number
+          id: string
+          metric_type: string
+          target_value: number
+          updated_at: string
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          metric_type: string
+          target_value: number
+          updated_at?: string
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          current_value?: number
+          id?: string
+          metric_type?: string
+          target_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_targets_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "performance_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -653,6 +814,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      recalculate_all_goals: {
+        Args: Record<string, never>
+        Returns: void
       }
     }
     Enums: {

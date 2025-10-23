@@ -14,8 +14,8 @@ import { MeetingsProvider } from "@/contexts/MeetingsContext";
 import { ExpensesProvider } from "@/contexts/ExpensesContext";
 import { ClientsProvider } from "@/contexts/ClientsContext";
 import { GoalsProvider } from "@/contexts/GoalsContext";
+import { PerformanceChallengesProvider } from "@/contexts/PerformanceChallengesContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
-import { PerformanceProvider } from "@/contexts/PerformanceContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { OWNER_EMAILS } from "@/config/adminConfig";
@@ -34,8 +34,6 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminPanel from "./pages/admin/AdminPanel";
-import Performance from "./pages/manager/Performance";
-import MyPerformance from "./pages/broker/MyPerformance";
 
 const queryClient = new QueryClient();
 
@@ -64,9 +62,9 @@ const App = () => (
                     <ExpensesProvider>
                       <ClientsProvider>
                         <GoalsProvider>
-                          <PerformanceProvider>
+                          <PerformanceChallengesProvider>
                             <NotificationsProvider>
-                              <TooltipProvider>
+                            <TooltipProvider>
                               <Toaster />
                               <Sonner />
                               <BrowserRouter>
@@ -118,20 +116,14 @@ const App = () => (
                   <Goals />
                 </ProtectedRoute>
               } />
-              {/* A página de desempenho foi movida para dentro dos detalhes do corretor */}
-              <Route path="/my-performance" element={
-                <ProtectedRoute allowedRoles={['broker']}>
-                  <MyPerformance />
-                </ProtectedRoute>
-              } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
                           </Routes>
                         </BrowserRouter>
                       </TooltipProvider>
                     </NotificationsProvider>
-                          </PerformanceProvider>
-                        </GoalsProvider>
+                  </PerformanceChallengesProvider>
+                </GoalsProvider>
                 </ClientsProvider>
               </ExpensesProvider>
             </MeetingsProvider>
