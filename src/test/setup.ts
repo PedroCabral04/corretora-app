@@ -1,6 +1,7 @@
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
+import React from 'react';
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
@@ -34,7 +35,24 @@ global.IntersectionObserver = class IntersectionObserver {
     return [];
   }
   unobserve() {}
-} as any;
+} as unknown as typeof globalThis.IntersectionObserver;
+
+// Global mock for PerformanceChallengesContext
+vi.mock('@/contexts/PerformanceChallengesContext', () => {
+  const usePerformanceChallenges = () => ({
+    challenges: [],
+    isLoading: false,
+    createChallenge: vi.fn(),
+    updateChallenge: vi.fn(),
+    deleteChallenge: vi.fn(),
+    getChallengesByBrokerId: (brokerId: string) => [],
+    refreshChallenges: vi.fn(),
+  });
+
+  const PerformanceChallengesProvider = ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+
+  return { usePerformanceChallenges, PerformanceChallengesProvider };
+});
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
@@ -42,4 +60,4 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
   observe() {}
   unobserve() {}
-} as any;
+} as unknown as typeof globalThis.ResizeObserver;
