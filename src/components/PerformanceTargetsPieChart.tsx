@@ -267,9 +267,11 @@ export const PerformanceTargetsPieChart = ({
               })}
             </div>
             {/* Gráfico de Pizza */}
-            <div ref={containerRef} className="relative flex-1 w-full h-[340px] min-w-[300px]">
+            <div ref={containerRef} className="relative flex-1 w-full h-[340px] min-w-[300px]" role="img" aria-label={title}>
               {/* Custom SVG donut chart */}
-              <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(300, size.w)} ${Math.max(300, size.h)}`} preserveAspectRatio="xMidYMid meet">
+              <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(300, size.w)} ${Math.max(300, size.h)}`} preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="perfchart-title perfchart-desc">
+                <title id="perfchart-title">{title}</title>
+                <desc id="perfchart-desc">Gráfico de rosquinha mostrando progresso relativo dos indicadores selecionados</desc>
                 {(() => {
                   const outerRadius = Math.min(size.w, size.h) / 2 * 0.9;
                   const innerRadius = outerRadius * 0.5;
@@ -349,6 +351,7 @@ export const PerformanceTargetsPieChart = ({
                                   filter: isHovered ? "drop-shadow(0 6px 18px rgba(0,0,0,0.12))" : undefined,
                                   transition: "opacity 180ms ease, stroke 180ms ease, filter 180ms ease",
                                 }}
+                                role="presentation"
                               />
                             )}
                           </g>
@@ -374,7 +377,7 @@ export const PerformanceTargetsPieChart = ({
 
               {/* Tooltip absolute inside svg container */}
               {tooltip.visible && tooltip.entry && (
-                <div style={{ position: 'absolute', left: tooltip.left, top: tooltip.top, pointerEvents: 'none' }}>
+                <div style={{ position: 'absolute', left: tooltip.left, top: tooltip.top, pointerEvents: 'none', zIndex: 40 }}>
                   <CustomTooltip
                     name={tooltip.entry.name}
                     target={tooltip.entry.target}

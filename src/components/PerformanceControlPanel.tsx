@@ -149,6 +149,7 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
             className="h-7 w-7 rounded-l-md rounded-r-none hover:bg-muted/50 border-r border-border/50"
             onClick={handleDecrement}
             disabled={localValue <= 0}
+            aria-label={`Diminuir ${METRIC_LABELS[target.metricType]}`}
           >
             <Minus className="h-3 w-3" />
           </Button>
@@ -163,6 +164,7 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
             max={Math.round(target.targetValue)}
             step={1}
             className="w-16 h-7 text-center text-xs border-0 border-x border-border/50 rounded-none focus:ring-0"
+            aria-label={`Valor atual de ${METRIC_LABELS[target.metricType]}`}
           />
           
           <Button
@@ -171,6 +173,7 @@ const MetricControl = ({ target, color, onChange }: MetricControlProps) => {
             className="h-7 w-7 rounded-r-md rounded-l-none hover:bg-muted/50"
             onClick={handleIncrement}
             disabled={localValue >= Math.round(target.targetValue)}
+            aria-label={`Aumentar ${METRIC_LABELS[target.metricType]}`}
           >
             <Plus className="h-3 w-3" />
           </Button>

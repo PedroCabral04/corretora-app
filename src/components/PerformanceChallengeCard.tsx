@@ -100,7 +100,14 @@ export const PerformanceChallengeCard = ({
       isSelected && "border-primary shadow-lg",
     )}
     role="button"
+    tabIndex={0}
     onClick={() => onSelect?.(challenge)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSelect?.(challenge);
+      }
+    }}
   >
     <CardHeader className="flex flex-row items-start justify-between space-y-0">
       <div className="space-y-1">
@@ -125,6 +132,7 @@ export const PerformanceChallengeCard = ({
               event.stopPropagation();
               onEdit?.(challenge);
             }}
+            aria-label={`Editar desafio ${challenge.title}`}
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -138,6 +146,7 @@ export const PerformanceChallengeCard = ({
               event.stopPropagation();
               onDelete?.(challenge.id);
             }}
+            aria-label={`Excluir desafio ${challenge.title}`}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -215,7 +224,7 @@ export const PerformanceChallengeCard = ({
                       event.stopPropagation();
                       handleDelta(1);
                     }}
-                    aria-label="Incrementar progresso"
+                    aria-label={`Incrementar ${METRIC_LABELS[target.metricType]}`}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -228,7 +237,7 @@ export const PerformanceChallengeCard = ({
                       event.stopPropagation();
                       handleDelta(-1);
                     }}
-                    aria-label="Reduzir progresso"
+                    aria-label={`Reduzir ${METRIC_LABELS[target.metricType]}`}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
