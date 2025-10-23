@@ -694,23 +694,37 @@ useEffect(() => {
       } finally {
         delete updateTimeoutsRef.current[challengeId];
       }
-    }, 800);
+    }, 1200);
   };
 
-  const handleSliderChange = (challengeId: string, targetId: string, newValue: number) => {
-    // Atualiza os valores dos sliders no estado local
+  const handleSliderChange = async (challengeId: string, targetId: string, newValue: number) => {
+    const roundedValue = Math.round(newValue);
+    
+    // Atualiza os valores dos sliders no estado local para UI responsiva
     setSliderValues(prev => ({
       ...prev,
-      [`${challengeId}-${targetId}`]: newValue
+      [`${challengeId}-${targetId}`]: roundedValue
     }));
 
-    // call optimistic single-target update in PerformanceChallenges context
+    // Atualização otimista: chama o Context que atualiza imediatamente o estado
+    // e persiste no banco de dados de forma debounced (800ms)
     try {
       if (typeof updateTargetProgress === 'function') {
-        void updateTargetProgress(challengeId, targetId, Math.round(newValue));
+        await updateTargetProgress(challengeId, targetId, roundedValue);
       }
     } catch (err) {
-      // ignore
+      console.error('Erro ao atualizar progresso do indicador:', err);
+      // Reverte o valor do slider em caso de erro
+      setSliderValues(prev => {
+        const updated = { ...prev };
+        delete updated[`${challengeId}-${targetId}`];
+        return updated;
+      });
+      toast({ 
+        title: "Erro", 
+        description: "Não foi possível atualizar o progresso do indicador", 
+        variant: "destructive" 
+      });
     }
   };
 
