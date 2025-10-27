@@ -32,6 +32,7 @@ import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Percent } from "luc
 import { useSales, Sale } from "@/contexts/SalesContext";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/EmptyState";
+import { formatDateBR } from "@/lib/utils";
 
 const Sales = () => {
   const { sales, isLoading, createSale, updateSale, deleteSale } = useSales();
@@ -261,7 +262,7 @@ const Sales = () => {
                     {filteredSales.map((sale) => (
                       <TableRow key={sale.id}>
                         <TableCell>
-                          {new Date(sale.saleDate).toLocaleDateString('pt-BR')}
+                          {formatDateBR(sale.saleDate)}
                         </TableCell>
                         <TableCell className="font-medium">{sale.clientName}</TableCell>
                         <TableCell>{sale.propertyAddress}</TableCell>
