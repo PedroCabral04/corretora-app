@@ -29,6 +29,7 @@ import {
   Trash2,
   Edit
 } from "lucide-react";
+import { formatDateBR } from "@/lib/utils";
 
 const BrokerProfile = () => {
   const navigate = useNavigate();
@@ -579,7 +580,7 @@ const BrokerProfile = () => {
                       <TableRow key={sale.id}>
                         <TableCell>{sale.description}</TableCell>
                         <TableCell>R$ {sale.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell>{new Date(sale.date).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell>{formatDateBR(sale.date)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" onClick={() => handleEditSale(sale)}>

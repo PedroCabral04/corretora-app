@@ -45,6 +45,7 @@ import {
   Trash2,
   Edit
 } from "lucide-react";
+import { formatDateBR } from "@/lib/utils";
 
 const COLOR_PALETTE = [
   "#8b5cf6",
@@ -1708,7 +1709,7 @@ useEffect(() => {
                       <div>
                         <h4 className="font-semibold">{sale.description}</h4>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(sale.date).toLocaleDateString('pt-BR')}
+                          {formatDateBR(sale.date)}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
