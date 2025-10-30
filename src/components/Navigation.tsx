@@ -208,7 +208,10 @@ export const Navigation = () => {
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="relative group">
+                  <button
+                    type="button"
+                    className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-shadow"
+                  >
                     <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-75 transition duration-200"></div>
                     <div className="relative">
                       <Avatar className="h-9 w-9 border-2 border-background ring-2 ring-primary/20 transition-all group-hover:ring-primary/40">
