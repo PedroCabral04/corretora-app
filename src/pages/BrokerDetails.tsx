@@ -26,6 +26,7 @@ import { useListings, DetailedListingStatus } from '@/contexts/ListingsContext';
 import { useSales } from '@/contexts/SalesContext';
 import { useMeetings } from '@/contexts/MeetingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
+import { TaskBoard } from '@/components/tasks/TaskBoard';
 import {
   usePerformanceChallenges,
   PerformanceChallenge,
