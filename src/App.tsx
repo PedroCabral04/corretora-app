@@ -34,6 +34,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminPanel from "./pages/admin/AdminPanel";
+import DashboardMetricDetails from "./pages/shared/DashboardMetricDetails";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,11 @@ const App = () => (
                             <Route path="/dashboard" element={
                               <ProtectedRoute>
                                 <Dashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/dashboard/detalhes/:metricType" element={
+                              <ProtectedRoute>
+                                <DashboardMetricDetails />
                               </ProtectedRoute>
                             } />
                             <Route path="/brokers" element={

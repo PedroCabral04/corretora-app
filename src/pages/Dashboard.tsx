@@ -19,6 +19,7 @@ import { usePerformance } from '@/contexts/PerformanceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { MetricCardSkeleton } from "@/components/ui/skeleton";
 import { parseIsoDate } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { brokers, isLoading: brokersLoading } = useBrokers();
@@ -28,6 +29,7 @@ const Dashboard = () => {
   const { tasks } = useTasks();
   const { challenges, getChallengesByBrokerId, getActiveChallenges } = usePerformance();
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState("all");
@@ -98,6 +100,16 @@ const Dashboard = () => {
   const totalValue = filteredData.sales.reduce((sum, sale) => sum + (sale.saleValue || 0), 0);
   const totalExpenses = filteredData.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const netProfit = totalValue - totalExpenses;
+
+  const handleMetricClick = (metric: "vendas" | "captacoes") => {
+    const params = new URLSearchParams({
+      year: selectedYear,
+      month: selectedMonth,
+      brokerId: selectedBroker,
+    });
+
+    navigate(`/dashboard/detalhes/${metric}?${params.toString()}`);
+  };
   
   // Sales by Month Data
   const salesByMonthData = useMemo(() => {
@@ -336,12 +348,16 @@ const Dashboard = () => {
               value={totalSales} 
               icon={TrendingUp} 
               variant="success" 
+              isInteractive
+              onClick={() => handleMetricClick("vendas")}
             />
             <MetricCard 
               title="Captações" 
               value={totalListings} 
               icon={Home} 
               variant="info" 
+              isInteractive
+              onClick={() => handleMetricClick("captacoes")}
             />
             <MetricCard 
               title="Valor Total Vendido" 
