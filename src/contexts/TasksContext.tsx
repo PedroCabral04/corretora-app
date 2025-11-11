@@ -60,16 +60,24 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       if (error) throw error;
 
-      const mappedTasks: Task[] = (data || []).map(task => ({
-        id: task.id,
-        title: task.title,
-        description: task.description || undefined,
-        dueDate: task.due_date,
-        status: task.status as TaskStatus,
-        createdAt: task.created_at.split('T')[0], // Convert to date string
-        priority: task.priority as "Baixa" | "Média" | "Alta",
-        brokerId: task.broker_id
-      }));
+      const mappedTasks: Task[] = (data || []).map(task => {
+        // Garantir que a data seja tratada no formato local (YYYY-MM-DD)
+        let dueDate = task.due_date;
+        if (dueDate && dueDate.includes('T')) {
+          dueDate = dueDate.split('T')[0];
+        }
+        
+        return {
+          id: task.id,
+          title: task.title,
+          description: task.description || undefined,
+          dueDate: dueDate,
+          status: task.status as TaskStatus,
+          createdAt: task.created_at.split('T')[0], // Convert to date string
+          priority: task.priority as "Baixa" | "Média" | "Alta",
+          brokerId: task.broker_id
+        };
+      });
 
       setTasks(mappedTasks);
     } catch (error) {
@@ -106,11 +114,17 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
     if (error) throw error;
 
+    // Garantir que a data seja tratada no formato local (YYYY-MM-DD)
+    let dueDate = newTask.due_date;
+    if (dueDate && dueDate.includes('T')) {
+      dueDate = dueDate.split('T')[0];
+    }
+
     const mappedTask: Task = {
       id: newTask.id,
       title: newTask.title,
       description: newTask.description || undefined,
-      dueDate: newTask.due_date,
+      dueDate: dueDate,
       status: newTask.status as TaskStatus,
       createdAt: newTask.created_at.split('T')[0],
       priority: newTask.priority as "Baixa" | "Média" | "Alta",
@@ -162,11 +176,17 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       if (error) throw error;
 
+      // Garantir que a data seja tratada no formato local (YYYY-MM-DD)
+      let dueDate = newTask.due_date;
+      if (dueDate && dueDate.includes('T')) {
+        dueDate = dueDate.split('T')[0];
+      }
+
       const mappedTask: Task = {
         id: newTask.id,
         title: newTask.title,
         description: newTask.description || undefined,
-        dueDate: newTask.due_date,
+        dueDate: dueDate,
         status: newTask.status as TaskStatus,
         createdAt: newTask.created_at.split('T')[0],
         priority: newTask.priority as "Baixa" | "Média" | "Alta",
@@ -204,11 +224,17 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
     if (error) throw error;
 
+    // Garantir que a data seja tratada no formato local (YYYY-MM-DD)
+    let dueDate = updatedTask.due_date;
+    if (dueDate && dueDate.includes('T')) {
+      dueDate = dueDate.split('T')[0];
+    }
+
     const mappedTask: Task = {
       id: updatedTask.id,
       title: updatedTask.title,
       description: updatedTask.description || undefined,
-      dueDate: updatedTask.due_date,
+      dueDate: dueDate,
       status: updatedTask.status as TaskStatus,
       createdAt: updatedTask.created_at.split('T')[0],
       priority: updatedTask.priority as "Baixa" | "Média" | "Alta",
@@ -246,11 +272,17 @@ export const TasksProvider = ({ children }: TasksProviderProps) => {
 
       if (error) throw error;
 
+      // Garantir que a data seja tratada no formato local (YYYY-MM-DD)
+      let dueDate = updatedTask.due_date;
+      if (dueDate && dueDate.includes('T')) {
+        dueDate = dueDate.split('T')[0];
+      }
+
       const mappedTask: Task = {
         id: updatedTask.id,
         title: updatedTask.title,
         description: updatedTask.description || undefined,
-        dueDate: updatedTask.due_date,
+        dueDate: dueDate,
         status: updatedTask.status as TaskStatus,
         createdAt: updatedTask.created_at.split('T')[0],
         priority: updatedTask.priority as "Baixa" | "Média" | "Alta",
