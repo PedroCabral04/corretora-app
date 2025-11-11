@@ -506,7 +506,10 @@ export const TaskBoard = ({
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-pink-700 hover:bg-pink-600">
+              <Button 
+                className="bg-pink-700 hover:bg-pink-600"
+                onClick={() => openModal()}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Tarefa
               </Button>
