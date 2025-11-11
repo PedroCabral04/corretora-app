@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MetricCard } from "@/components/MetricCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -248,6 +248,19 @@ export const TaskBoard = ({
       },
     }),
   );
+
+  // Force clear form when modal closes
+  useEffect(() => {
+    if (!isModalOpen && !editingTask) {
+      setFormData({
+        title: "",
+        description: "",
+        dueDate: "",
+        status: "Backlog",
+        priority: "Média",
+      });
+    }
+  }, [isModalOpen, editingTask]);
 
   const columns: { status: TaskStatus; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { status: "Backlog", title: "Backlog", icon: FileText },

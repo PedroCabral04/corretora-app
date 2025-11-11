@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MetricCard } from "@/components/MetricCard";
@@ -220,6 +220,19 @@ const Tasks = () => {
       },
     })
   );
+
+  // Force clear form when modal closes
+  useEffect(() => {
+    if (!isModalOpen && !editingTask) {
+      setFormData({
+        title: "",
+        description: "",
+        dueDate: "",
+        status: "Backlog",
+        priority: "Média",
+      });
+    }
+  }, [isModalOpen, editingTask]);
 
   const columns: { status: TaskStatus; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { status: "Backlog", title: "Backlog", icon: FileText },
