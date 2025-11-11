@@ -35,7 +35,6 @@ import {
   PerformanceMetricType,
   PerformanceTargetInput,
 } from '@/contexts/PerformanceChallengesContext';
-import { TaskBoard } from '@/components/tasks/TaskBoard';
 import {
   ArrowLeft,
   TrendingUp,

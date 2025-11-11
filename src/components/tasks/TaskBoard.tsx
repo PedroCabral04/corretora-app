@@ -479,9 +479,22 @@ export const TaskBoard = ({
             />
           </div>
           <Dialog open={isModalOpen} onOpenChange={(open) => {
+            if (open && !editingTask) {
+              // Reset form BEFORE opening when creating new task
+              setFormData({
+                title: "",
+                description: "",
+                dueDate: "",
+                status: "Backlog",
+                priority: "Média",
+              });
+              setEditingTask(null);
+            }
+            
             setIsModalOpen(open);
+            
             if (!open) {
-              // Reset form when closing
+              // Also reset when closing
               setFormData({
                 title: "",
                 description: "",
@@ -501,7 +514,7 @@ export const TaskBoard = ({
                 Nova Tarefa
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent key={editingTask ? editingTask.id : 'new-task'}>
               <DialogHeader>
                 <DialogTitle>{editingTask ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
               </DialogHeader>
@@ -509,6 +522,7 @@ export const TaskBoard = ({
                 <div>
                   <Label htmlFor="task-title">Título</Label>
                   <Input
+                    key={`title-${editingTask?.id || 'new'}`}
                     id="task-title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -518,6 +532,7 @@ export const TaskBoard = ({
                 <div>
                   <Label htmlFor="task-description">Descrição</Label>
                   <Textarea
+                    key={`description-${editingTask?.id || 'new'}`}
                     id="task-description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -530,6 +545,7 @@ export const TaskBoard = ({
                   <div>
                     <Label htmlFor="task-due-date">Data</Label>
                     <Input
+                      key={`date-${editingTask?.id || 'new'}`}
                       id="task-due-date"
                       type="date"
                       value={formData.dueDate}

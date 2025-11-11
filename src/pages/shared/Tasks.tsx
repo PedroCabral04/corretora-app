@@ -341,6 +341,16 @@ const Tasks = () => {
       updateTask(editingTask.id, formData as Partial<Task>, { optimistic: true })
         .then(() => {
           toast({ title: "Sucesso", description: "Tarefa atualizada com sucesso" });
+          setIsModalOpen(false);
+          // Reset form after update
+          setFormData({
+            title: "",
+            description: "",
+            dueDate: "",
+            status: "Backlog",
+            priority: "Média",
+          });
+          setEditingTask(null);
         })
         .catch((err) => {
           console.error(err);
@@ -351,14 +361,21 @@ const Tasks = () => {
       createTask(formData as Omit<Task, 'id' | 'createdAt'>, { optimistic: true })
         .then(() => {
           toast({ title: "Sucesso", description: "Tarefa criada com sucesso" });
+          setIsModalOpen(false);
+          // Reset form after create
+          setFormData({
+            title: "",
+            description: "",
+            dueDate: "",
+            status: "Backlog",
+            priority: "Média",
+          });
         })
         .catch((err) => {
           console.error(err);
           toast({ title: "Erro", description: "Não foi possível criar a tarefa", variant: "destructive" });
         });
     }
-
-    setIsModalOpen(false);
   };
 
   const deleteTask = (taskId: string) => {
@@ -517,8 +534,34 @@ const Tasks = () => {
       </main>
 
       {/* Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="w-[95vw] sm:w-auto max-w-lg">
+      <Dialog open={isModalOpen} onOpenChange={(open) => {
+        if (open && !editingTask) {
+          // Reset form BEFORE opening when creating new task
+          setFormData({
+            title: "",
+            description: "",
+            dueDate: "",
+            status: "Backlog",
+            priority: "Média",
+          });
+          setEditingTask(null);
+        }
+        
+        setIsModalOpen(open);
+        
+        if (!open) {
+          // Also reset when closing
+          setFormData({
+            title: "",
+            description: "",
+            dueDate: "",
+            status: "Backlog",
+            priority: "Média",
+          });
+          setEditingTask(null);
+        }
+      }}>
+        <DialogContent key={editingTask ? editingTask.id : 'new-task'} className="w-[95vw] sm:w-auto max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingTask ? "Editar Tarefa" : "Nova Tarefa"}
@@ -528,6 +571,7 @@ const Tasks = () => {
             <div>
               <Label htmlFor="title">Título *</Label>
               <Input
+                key={`title-${editingTask?.id || 'new'}`}
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
@@ -538,6 +582,7 @@ const Tasks = () => {
             <div>
               <Label htmlFor="description">Descrição</Label>
               <Textarea
+                key={`description-${editingTask?.id || 'new'}`}
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -550,6 +595,7 @@ const Tasks = () => {
               <div>
                 <Label htmlFor="dueDate">Data de Entrega *</Label>
                 <Input
+                  key={`date-${editingTask?.id || 'new'}`}
                   id="dueDate"
                   type="date"
                   value={formData.dueDate}
