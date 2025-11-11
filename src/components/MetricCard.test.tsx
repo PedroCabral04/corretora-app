@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/test-utils';
+import userEvent from '@testing-library/user-event';
 import { MetricCard } from '@/components/MetricCard';
 import { Users, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
 
@@ -336,6 +337,31 @@ describe('MetricCard', () => {
       );
 
       expect(screen.getByText(longTrend)).toBeDefined();
+    });
+  });
+
+  describe('Interactive Behaviour', () => {
+    it('should display interactive cues and handle clicks', async () => {
+      const handleClick = vi.fn();
+      const user = userEvent.setup();
+
+      render(
+        <MetricCard
+          title="Vendas"
+          value={42}
+          icon={TrendingUp}
+          variant="success"
+          isInteractive
+          onClick={handleClick}
+        />
+      );
+
+      const interactiveCard = screen.getByRole('button', { name: /vendas - ver detalhes/i });
+      expect(interactiveCard).toBeDefined();
+      expect(screen.getByText('Ver detalhes')).toBeDefined();
+
+      await user.click(interactiveCard);
+      expect(handleClick).toHaveBeenCalledTimes(1);
     });
   });
 });

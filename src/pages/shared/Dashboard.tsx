@@ -14,6 +14,8 @@ import { useListings } from '@/contexts/ListingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
 import { useTasks } from '@/contexts/TasksContext';
 import { MetricCardSkeleton } from "@/components/ui/skeleton";
+import { parseIsoDate } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { brokers, isLoading: brokersLoading } = useBrokers();
@@ -21,6 +23,7 @@ const Dashboard = () => {
   const { listings } = useListings();
   const { expenses } = useExpenses();
   const { tasks } = useTasks();
+  const navigate = useNavigate();
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState("all");
@@ -30,16 +33,16 @@ const Dashboard = () => {
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     sales.forEach(sale => {
-      const year = new Date(sale.saleDate).getFullYear();
-      years.add(year);
+      const date = parseIsoDate(sale.saleDate);
+      if (date) years.add(date.getFullYear());
     });
     listings.forEach(listing => {
-      const year = new Date(listing.listingDate).getFullYear();
-      years.add(year);
+      const date = parseIsoDate(listing.listingDate);
+      if (date) years.add(date.getFullYear());
     });
     expenses.forEach(expense => {
-      const year = new Date(expense.expenseDate).getFullYear();
-      years.add(year);
+      const date = parseIsoDate(expense.expenseDate);
+      if (date) years.add(date.getFullYear());
     });
     
     const sortedYears = Array.from(years).sort((a, b) => b - a);
@@ -52,9 +55,10 @@ const Dashboard = () => {
     const month = selectedMonth === "all" ? null : parseInt(selectedMonth);
     
     const filterByDate = (date: string) => {
-      const d = new Date(date);
-      if (d.getFullYear() !== year) return false;
-      if (month !== null && d.getMonth() !== month) return false;
+      const parsedDate = parseIsoDate(date);
+      if (!parsedDate) return false;
+      if (parsedDate.getFullYear() !== year) return false;
+      if (month !== null && parsedDate.getMonth() !== month) return false;
       return true;
     };
     
@@ -90,6 +94,16 @@ const Dashboard = () => {
   const totalValue = filteredData.sales.reduce((sum, sale) => sum + (sale.saleValue || 0), 0);
   const totalExpenses = filteredData.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const netProfit = totalValue - totalExpenses;
+
+  const handleMetricClick = (metric: "vendas" | "captacoes") => {
+    const params = new URLSearchParams({
+      year: selectedYear,
+      month: selectedMonth,
+      brokerId: selectedBroker,
+    });
+
+    navigate(`/dashboard/detalhes/${metric}?${params.toString()}`);
+  };
   
   // Sales by Month Data
   const salesByMonthData = useMemo(() => {
@@ -98,7 +112,8 @@ const Dashboard = () => {
     
     return months.map((month, index) => {
       const monthSales = sales.filter(sale => {
-        const saleDate = new Date(sale.saleDate);
+        const saleDate = parseIsoDate(sale.saleDate);
+        if (!saleDate) return false;
         const matchYear = saleDate.getFullYear() === year;
         const matchMonth = saleDate.getMonth() === index;
         const matchBroker = selectedBroker === "all" || sale.brokerId === selectedBroker;
@@ -120,7 +135,8 @@ const Dashboard = () => {
     
     return months.map((month, index) => {
       const monthExpenses = expenses.filter(expense => {
-        const expenseDate = new Date(expense.expenseDate);
+        const expenseDate = parseIsoDate(expense.expenseDate);
+        if (!expenseDate) return false;
         const matchYear = expenseDate.getFullYear() === year;
         const matchMonth = expenseDate.getMonth() === index;
         const matchBroker = selectedBroker === "all" || expense.brokerId === selectedBroker;
@@ -141,7 +157,8 @@ const Dashboard = () => {
     
     return months.map((month, index) => {
       const monthListings = listings.filter(listing => {
-        const listingDate = new Date(listing.listingDate);
+        const listingDate = parseIsoDate(listing.listingDate);
+        if (!listingDate) return false;
         const matchYear = listingDate.getFullYear() === year;
         const matchMonth = listingDate.getMonth() === index;
         const matchBroker = selectedBroker === "all" || listing.brokerId === selectedBroker;
@@ -325,12 +342,16 @@ const Dashboard = () => {
               value={totalSales} 
               icon={TrendingUp} 
               variant="success" 
+              isInteractive
+              onClick={() => handleMetricClick("vendas")}
             />
             <MetricCard 
               title="Captações" 
               value={totalListings} 
               icon={Home} 
               variant="info" 
+              isInteractive
+              onClick={() => handleMetricClick("captacoes")}
             />
             <MetricCard 
               title="Valor Total Vendido" 

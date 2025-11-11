@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeIsoDate } from "@/lib/utils";
 import { useAuth } from './AuthContext';
 
 export interface Sale {
@@ -61,7 +62,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
         clientName: sale.client_name,
         saleValue: Number(sale.sale_value),
         commission: Number(sale.commission),
-        saleDate: sale.sale_date
+        saleDate: normalizeIsoDate(sale.sale_date)
       }));
 
       setSales(mappedSales);
@@ -80,6 +81,11 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
   const createSale = async (data: Omit<Sale, 'id'>) => {
     if (!user) throw new Error('Usuário não autenticado');
 
+    const saleDate = normalizeIsoDate(data.saleDate);
+    if (!saleDate) {
+      throw new Error('Data da venda inválida');
+    }
+
     const saleData = {
       user_id: user.id,
       broker_id: data.brokerId,
@@ -87,7 +93,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
       client_name: data.clientName,
       sale_value: data.saleValue,
       commission: data.commission,
-      sale_date: data.saleDate
+      sale_date: saleDate
     };
 
     const { data: newSale, error } = await supabase
@@ -105,7 +111,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
       clientName: newSale.client_name,
       saleValue: Number(newSale.sale_value),
       commission: Number(newSale.commission),
-      saleDate: newSale.sale_date
+      saleDate: normalizeIsoDate(newSale.sale_date)
     };
 
     setSales(prev => [mappedSale, ...prev]);
@@ -120,7 +126,13 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
     if (data.clientName !== undefined) updateData.client_name = data.clientName;
     if (data.saleValue !== undefined) updateData.sale_value = data.saleValue;
     if (data.commission !== undefined) updateData.commission = data.commission;
-    if (data.saleDate !== undefined) updateData.sale_date = data.saleDate;
+    if (data.saleDate !== undefined) {
+      const saleDate = normalizeIsoDate(data.saleDate);
+      if (!saleDate) {
+        throw new Error('Data da venda inválida');
+      }
+      updateData.sale_date = saleDate;
+    }
 
     const { data: updatedSale, error } = await supabase
       .from('sales')
@@ -139,7 +151,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
       clientName: updatedSale.client_name,
       saleValue: Number(updatedSale.sale_value),
       commission: Number(updatedSale.commission),
-      saleDate: updatedSale.sale_date
+      saleDate: normalizeIsoDate(updatedSale.sale_date)
     };
 
     setSales(prev => prev.map(sale => sale.id === id ? mappedSale : sale));
