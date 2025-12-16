@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { normalizeIsoDate } from "@/lib/utils";
 import { useAuth } from './AuthContext';
 
+export type SaleType = 'lancamento' | 'revenda';
+
 export interface Sale {
   id: string;
   brokerId: string;
@@ -11,6 +13,7 @@ export interface Sale {
   saleValue: number;
   commission: number;
   saleDate: string;
+  saleType: SaleType;
 }
 
 interface SalesContextType {
@@ -55,14 +58,15 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
 
       if (error) throw error;
 
-      const mappedSales: Sale[] = (data || []).map(sale => ({
+      const mappedSales: Sale[] = (data || []).map((sale: any) => ({
         id: sale.id,
         brokerId: sale.broker_id,
         propertyAddress: sale.property_address,
         clientName: sale.client_name,
         saleValue: Number(sale.sale_value),
         commission: Number(sale.commission),
-        saleDate: normalizeIsoDate(sale.sale_date)
+        saleDate: normalizeIsoDate(sale.sale_date),
+        saleType: (sale.sale_type as SaleType) || 'revenda'
       }));
 
       setSales(mappedSales);
@@ -93,7 +97,8 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
       client_name: data.clientName,
       sale_value: data.saleValue,
       commission: data.commission,
-      sale_date: saleDate
+      sale_date: saleDate,
+      sale_type: data.saleType || 'revenda'
     };
 
     const { data: newSale, error } = await supabase
@@ -104,14 +109,16 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
 
     if (error) throw error;
 
+    const typedNewSale = newSale as any;
     const mappedSale: Sale = {
-      id: newSale.id,
-      brokerId: newSale.broker_id,
-      propertyAddress: newSale.property_address,
-      clientName: newSale.client_name,
-      saleValue: Number(newSale.sale_value),
-      commission: Number(newSale.commission),
-      saleDate: normalizeIsoDate(newSale.sale_date)
+      id: typedNewSale.id,
+      brokerId: typedNewSale.broker_id,
+      propertyAddress: typedNewSale.property_address,
+      clientName: typedNewSale.client_name,
+      saleValue: Number(typedNewSale.sale_value),
+      commission: Number(typedNewSale.commission),
+      saleDate: normalizeIsoDate(typedNewSale.sale_date),
+      saleType: (typedNewSale.sale_type as SaleType) || 'revenda'
     };
 
     setSales(prev => [mappedSale, ...prev]);
@@ -126,6 +133,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
     if (data.clientName !== undefined) updateData.client_name = data.clientName;
     if (data.saleValue !== undefined) updateData.sale_value = data.saleValue;
     if (data.commission !== undefined) updateData.commission = data.commission;
+    if (data.saleType !== undefined) updateData.sale_type = data.saleType;
     if (data.saleDate !== undefined) {
       const saleDate = normalizeIsoDate(data.saleDate);
       if (!saleDate) {
@@ -144,14 +152,16 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
 
     if (error) throw error;
 
+    const typedUpdatedSale = updatedSale as any;
     const mappedSale: Sale = {
-      id: updatedSale.id,
-      brokerId: updatedSale.broker_id,
-      propertyAddress: updatedSale.property_address,
-      clientName: updatedSale.client_name,
-      saleValue: Number(updatedSale.sale_value),
-      commission: Number(updatedSale.commission),
-      saleDate: normalizeIsoDate(updatedSale.sale_date)
+      id: typedUpdatedSale.id,
+      brokerId: typedUpdatedSale.broker_id,
+      propertyAddress: typedUpdatedSale.property_address,
+      clientName: typedUpdatedSale.client_name,
+      saleValue: Number(typedUpdatedSale.sale_value),
+      commission: Number(typedUpdatedSale.commission),
+      saleDate: normalizeIsoDate(typedUpdatedSale.sale_date),
+      saleType: (typedUpdatedSale.sale_type as SaleType) || 'revenda'
     };
 
     setSales(prev => prev.map(sale => sale.id === id ? mappedSale : sale));
@@ -163,7 +173,7 @@ export const SalesProvider = ({ children }: SalesProviderProps) => {
 
     // Guarda o estado anterior para reverter em caso de erro
     const previousSales = [...sales];
-    
+
     // Update otimista: remove da lista imediatamente
     setSales(prev => prev.filter(sale => sale.id !== id));
 

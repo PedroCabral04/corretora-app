@@ -28,8 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Percent } from "lucide-react";
-import { useSales, Sale } from "@/contexts/SalesContext";
+import { Plus, Search, Edit, Trash2, DollarSign, TrendingUp, Percent, Building2, Home } from "lucide-react";
+import { useSales, Sale, SaleType } from "@/contexts/SalesContext";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/EmptyState";
 import { formatDateBR } from "@/lib/utils";
@@ -39,7 +39,7 @@ const Sales = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     clientName: "",
@@ -48,6 +48,7 @@ const Sales = () => {
     saleDate: new Date().toISOString().split('T')[0],
     commission: "",
     brokerId: "",
+    saleType: "revenda" as SaleType,
   });
 
   const resetForm = () => {
@@ -58,6 +59,7 @@ const Sales = () => {
       saleDate: new Date().toISOString().split('T')[0],
       commission: "",
       brokerId: "",
+      saleType: "revenda" as SaleType,
     });
     setEditingSale(null);
   };
@@ -72,6 +74,7 @@ const Sales = () => {
         saleDate: sale.saleDate,
         commission: sale.commission?.toString() || "",
         brokerId: sale.brokerId,
+        saleType: sale.saleType || "revenda",
       });
     } else {
       resetForm();
@@ -86,7 +89,7 @@ const Sales = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const saleData = {
         ...formData,
@@ -119,7 +122,7 @@ const Sales = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir esta venda?")) return;
-    
+
     try {
       await deleteSale(id);
       toast({
@@ -138,7 +141,7 @@ const Sales = () => {
   // Filtrar vendas
   const filteredSales = sales.filter(sale => {
     const matchesSearch = sale.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sale.propertyAddress.toLowerCase().includes(searchTerm.toLowerCase());
+      sale.propertyAddress.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -155,10 +158,20 @@ const Sales = () => {
   const totalCommission = sales.reduce((sum, sale) => sum + (sale.commission || 0), 0);
   const averageTicket = totalSales > 0 ? totalValue / totalSales : 0;
 
+  // Calcular VGV por tipo de venda
+  const lancamentoSales = sales.filter(sale => sale.saleType === 'lancamento');
+  const revendaSales = sales.filter(sale => sale.saleType === 'revenda');
+
+  const vgvLancamento = lancamentoSales.reduce((sum, sale) => sum + sale.saleValue, 0);
+  const vgvRevenda = revendaSales.reduce((sum, sale) => sum + sale.saleValue, 0);
+
+  const totalLancamento = lancamentoSales.length;
+  const totalRevenda = revendaSales.length;
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -174,7 +187,7 @@ const Sales = () => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - VGV Geral */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -187,7 +200,7 @@ const Sales = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+              <CardTitle className="text-sm font-medium">VGV Geral</CardTitle>
               <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -210,6 +223,48 @@ const Sales = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(averageTicket)}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Stats Cards - VGV por Tipo */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="border-l-4 border-l-orange-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="text-sm font-medium">VGV Lançamento</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {totalLancamento} {totalLancamento === 1 ? 'venda' : 'vendas'}
+                </p>
+              </div>
+              <Building2 className="h-5 w-5 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{formatCurrency(vgvLancamento)}</div>
+              {totalValue > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {((vgvLancamento / totalValue) * 100).toFixed(1)}% do total
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="text-sm font-medium">VGV Revenda</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {totalRevenda} {totalRevenda === 1 ? 'venda' : 'vendas'}
+                </p>
+              </div>
+              <Home className="h-5 w-5 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600">{formatCurrency(vgvRevenda)}</div>
+              {totalValue > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {((vgvRevenda / totalValue) * 100).toFixed(1)}% do total
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -251,6 +306,7 @@ const Sales = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
+                      <TableHead>Tipo</TableHead>
                       <TableHead>Cliente</TableHead>
                       <TableHead>Imóvel</TableHead>
                       <TableHead>Valor da Venda</TableHead>
@@ -263,6 +319,18 @@ const Sales = () => {
                       <TableRow key={sale.id}>
                         <TableCell>
                           {formatDateBR(sale.saleDate)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              sale.saleType === 'lancamento'
+                                ? 'border-orange-500 text-orange-600 bg-orange-50'
+                                : 'border-emerald-500 text-emerald-600 bg-emerald-50'
+                            }
+                          >
+                            {sale.saleType === 'lancamento' ? 'Lançamento' : 'Revenda'}
+                          </Badge>
                         </TableCell>
                         <TableCell className="font-medium">{sale.clientName}</TableCell>
                         <TableCell>{sale.propertyAddress}</TableCell>
@@ -309,13 +377,39 @@ const Sales = () => {
                 {editingSale ? "Editar Venda" : "Registrar Venda"}
               </DialogTitle>
               <DialogDescription>
-                {editingSale 
-                  ? "Atualize as informações da venda" 
+                {editingSale
+                  ? "Atualize as informações da venda"
                   : "Preencha os dados da nova venda"}
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="saleType">Tipo de Venda *</Label>
+                <Select
+                  value={formData.saleType}
+                  onValueChange={(value: SaleType) => setFormData({ ...formData, saleType: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lancamento">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-orange-500" />
+                        <span>Lançamento</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="revenda">
+                      <div className="flex items-center gap-2">
+                        <Home className="h-4 w-4 text-emerald-500" />
+                        <span>Revenda</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="clientName">Nome do Cliente *</Label>
                 <Input

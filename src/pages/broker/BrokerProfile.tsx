@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
 import { useClients } from '@/contexts/ClientsContext';
 import { useListings, DetailedListingStatus } from '@/contexts/ListingsContext';
-import { useSales } from '@/contexts/SalesContext';
+import { useSales, SaleType } from '@/contexts/SalesContext';
 import { useMeetings } from '@/contexts/MeetingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
 import {
@@ -27,7 +27,8 @@ import {
   DollarSign,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  Building2
 } from "lucide-react";
 import { formatDateBR } from "@/lib/utils";
 
@@ -38,11 +39,11 @@ const BrokerProfile = () => {
 
   const { brokers, isLoading: brokersLoading, createBroker, refreshBrokers } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
-  const { 
-    listings, 
-    createListing, 
-    updateListing, 
-    deleteListing, 
+  const {
+    listings,
+    createListing,
+    updateListing,
+    deleteListing,
     getListingsByBrokerId,
     getAggregateQuantity,
     updateAggregateQuantity,
@@ -55,7 +56,7 @@ const BrokerProfile = () => {
   const { expenses, createExpense, updateExpense, deleteExpense, getExpensesByBrokerId } = useExpenses();
 
   // Encontrar o registro de broker correspondente ao usuário logado
-  const userBroker = brokers.find(broker => 
+  const userBroker = brokers.find(broker =>
     broker.email?.toLowerCase() === user?.email.toLowerCase()
   );
 
@@ -104,7 +105,10 @@ const BrokerProfile = () => {
         id: s.id,
         description: s.propertyAddress,
         value: s.saleValue,
-        date: s.saleDate
+        date: s.saleDate,
+        saleType: s.saleType || 'revenda',
+        clientName: s.clientName,
+        commission: s.commission
       })),
       meetings: brokerMeetings.map(m => ({
         id: m.id,
@@ -134,7 +138,7 @@ const BrokerProfile = () => {
       if (!brokersLoading && !userBroker && user && user.role === 'broker') {
         try {
           console.log('🔄 Criando perfil de corretor para:', user.email);
-          
+
           // Criar o registro de broker automaticamente
           await createBroker({
             name: user.name,
@@ -177,14 +181,14 @@ const BrokerProfile = () => {
   const [selectedPropertyType, setSelectedPropertyType] = useState<'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara' | null>(null);
 
   // Form states
-  const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
-  const [newListing, setNewListing] = useState({ 
-    propertyType: "Apartamento", 
-    quantity: "1", 
-    status: "Ativo", 
-    date: new Date().toISOString().split('T')[0], 
-    propertyAddress: "", 
-    propertyValue: "" 
+  const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "", saleType: "revenda" as SaleType });
+  const [newListing, setNewListing] = useState({
+    propertyType: "Apartamento",
+    quantity: "1",
+    status: "Ativo",
+    date: new Date().toISOString().split('T')[0],
+    propertyAddress: "",
+    propertyValue: ""
   });
   const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
   const [meetingSummary, setMeetingSummary] = useState("");
@@ -222,7 +226,8 @@ const BrokerProfile = () => {
           clientName: newSale.clientName,
           saleValue: parseFloat(newSale.saleValue),
           commission: parseFloat(newSale.commission),
-          saleDate: newSale.date
+          saleDate: newSale.date,
+          saleType: newSale.saleType
         });
         toast({ title: "Sucesso", description: "Venda atualizada com sucesso!" });
       } else {
@@ -232,12 +237,13 @@ const BrokerProfile = () => {
           clientName: newSale.clientName,
           saleValue: parseFloat(newSale.saleValue),
           commission: parseFloat(newSale.commission),
-          saleDate: newSale.date
+          saleDate: newSale.date,
+          saleType: newSale.saleType
         });
         toast({ title: "Sucesso", description: "Venda adicionada com sucesso!" });
       }
 
-      setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
+      setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "", saleType: "revenda" as SaleType });
       setEditingSaleId(null);
       setSalesModalOpen(false);
     } catch (error) {
@@ -253,7 +259,8 @@ const BrokerProfile = () => {
       clientName: sale.clientName || "",
       saleValue: sale.value.toString(),
       commission: sale.commission?.toString() || "",
-      date: sale.date
+      date: sale.date,
+      saleType: sale.saleType || "revenda"
     });
     setSalesModalOpen(true);
   };
@@ -299,7 +306,7 @@ const BrokerProfile = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -373,7 +380,7 @@ const BrokerProfile = () => {
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="propertyType">Tipo de Imóvel</Label>
-                        <Select value={newListing.propertyType} onValueChange={(value) => setNewListing({...newListing, propertyType: value})}>
+                        <Select value={newListing.propertyType} onValueChange={(value) => setNewListing({ ...newListing, propertyType: value })}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -388,11 +395,11 @@ const BrokerProfile = () => {
                       </div>
                       <div>
                         <Label htmlFor="quantity">Quantidade</Label>
-                        <Input id="quantity" type="number" value={newListing.quantity} onChange={(e) => setNewListing({...newListing, quantity: e.target.value})} />
+                        <Input id="quantity" type="number" value={newListing.quantity} onChange={(e) => setNewListing({ ...newListing, quantity: e.target.value })} />
                       </div>
                       <div>
                         <Label htmlFor="status">Status</Label>
-                        <Select value={newListing.status} onValueChange={(value) => setNewListing({...newListing, status: value})}>
+                        <Select value={newListing.status} onValueChange={(value) => setNewListing({ ...newListing, status: value })}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -405,7 +412,7 @@ const BrokerProfile = () => {
                       </div>
                       <div>
                         <Label htmlFor="date">Data</Label>
-                        <Input id="date" type="date" value={newListing.date} onChange={(e) => setNewListing({...newListing, date: e.target.value})} />
+                        <Input id="date" type="date" value={newListing.date} onChange={(e) => setNewListing({ ...newListing, date: e.target.value })} />
                       </div>
                       <Button onClick={async () => {
                         if (!brokerId) return;
@@ -447,16 +454,16 @@ const BrokerProfile = () => {
                         try {
                           await updateAggregateQuantity(brokerId, propertyType, quantity);
                           await refreshBrokers();
-                          toast({ 
-                            title: "Sucesso", 
-                            description: `Quantidade de ${propertyType} atualizada para ${quantity}` 
+                          toast({
+                            title: "Sucesso",
+                            description: `Quantidade de ${propertyType} atualizada para ${quantity}`
                           });
                         } catch (error) {
                           console.error('Erro ao atualizar quantidade:', error);
-                          toast({ 
-                            title: "Erro", 
-                            description: "Não foi possível atualizar a quantidade", 
-                            variant: "destructive" 
+                          toast({
+                            title: "Erro",
+                            description: "Não foi possível atualizar a quantidade",
+                            variant: "destructive"
                           });
                         }
                       }}
@@ -523,6 +530,47 @@ const BrokerProfile = () => {
 
           {/* Tab: Vendas */}
           <TabsContent value="sales">
+            {/* Cards de VGV por Tipo */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="rounded-lg bg-muted/40 border p-4">
+                <p className="text-sm text-muted-foreground">VGV Total</p>
+                <p className="text-2xl font-bold mt-1">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    brokerData.sales.reduce((sum, s) => sum + s.value, 0)
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">{brokerData.sales.length} vendas</p>
+              </div>
+              <div className="rounded-lg bg-muted/40 border border-l-4 border-l-orange-500 p-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-orange-500" />
+                  <p className="text-sm text-muted-foreground">VGV Lançamento</p>
+                </div>
+                <p className="text-2xl font-bold text-orange-600 mt-1">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    brokerData.sales.filter(s => s.saleType === 'lancamento').reduce((sum, s) => sum + s.value, 0)
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {brokerData.sales.filter(s => s.saleType === 'lancamento').length} vendas
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/40 border border-l-4 border-l-emerald-500 p-4">
+                <div className="flex items-center gap-2">
+                  <Home className="h-4 w-4 text-emerald-500" />
+                  <p className="text-sm text-muted-foreground">VGV Revenda</p>
+                </div>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    brokerData.sales.filter(s => s.saleType === 'revenda').reduce((sum, s) => sum + s.value, 0)
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {brokerData.sales.filter(s => s.saleType === 'revenda').length} vendas
+                </p>
+              </div>
+            </div>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Minhas Vendas</CardTitle>
@@ -539,24 +587,49 @@ const BrokerProfile = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
+                        <Label htmlFor="saleType">Tipo de Venda *</Label>
+                        <Select
+                          value={newSale.saleType}
+                          onValueChange={(value: SaleType) => setNewSale({ ...newSale, saleType: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="lancamento">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-orange-500" />
+                                <span>Lançamento</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="revenda">
+                              <div className="flex items-center gap-2">
+                                <Home className="h-4 w-4 text-emerald-500" />
+                                <span>Revenda</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label htmlFor="propertyAddress">Endereço do Imóvel</Label>
-                        <Input id="propertyAddress" value={newSale.propertyAddress} onChange={(e) => setNewSale({...newSale, propertyAddress: e.target.value})} />
+                        <Input id="propertyAddress" value={newSale.propertyAddress} onChange={(e) => setNewSale({ ...newSale, propertyAddress: e.target.value })} />
                       </div>
                       <div>
                         <Label htmlFor="clientName">Nome do Cliente</Label>
-                        <Input id="clientName" value={newSale.clientName} onChange={(e) => setNewSale({...newSale, clientName: e.target.value})} />
+                        <Input id="clientName" value={newSale.clientName} onChange={(e) => setNewSale({ ...newSale, clientName: e.target.value })} />
                       </div>
                       <div>
                         <Label htmlFor="saleValue">Valor da Venda</Label>
-                        <Input id="saleValue" type="number" value={newSale.saleValue} onChange={(e) => setNewSale({...newSale, saleValue: e.target.value})} />
+                        <Input id="saleValue" type="number" value={newSale.saleValue} onChange={(e) => setNewSale({ ...newSale, saleValue: e.target.value })} />
                       </div>
                       <div>
                         <Label htmlFor="commission">Comissão</Label>
-                        <Input id="commission" type="number" value={newSale.commission} onChange={(e) => setNewSale({...newSale, commission: e.target.value})} />
+                        <Input id="commission" type="number" value={newSale.commission} onChange={(e) => setNewSale({ ...newSale, commission: e.target.value })} />
                       </div>
                       <div>
                         <Label htmlFor="saleDate">Data da Venda</Label>
-                        <Input id="saleDate" type="date" value={newSale.date} onChange={(e) => setNewSale({...newSale, date: e.target.value})} />
+                        <Input id="saleDate" type="date" value={newSale.date} onChange={(e) => setNewSale({ ...newSale, date: e.target.value })} />
                       </div>
                       <Button onClick={addSale} className="w-full bg-pink-700 hover:bg-pink-600">
                         {editingSaleId ? 'Atualizar' : 'Salvar'}
@@ -569,6 +642,7 @@ const BrokerProfile = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Tipo</TableHead>
                       <TableHead>Imóvel</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Data</TableHead>
@@ -578,6 +652,18 @@ const BrokerProfile = () => {
                   <TableBody>
                     {brokerData.sales.map((sale) => (
                       <TableRow key={sale.id}>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              sale.saleType === 'lancamento'
+                                ? 'border-orange-500 text-orange-600 bg-orange-50'
+                                : 'border-emerald-500 text-emerald-600 bg-emerald-50'
+                            }
+                          >
+                            {sale.saleType === 'lancamento' ? 'Lançamento' : 'Revenda'}
+                          </Badge>
+                        </TableCell>
                         <TableCell>{sale.description}</TableCell>
                         <TableCell>R$ {sale.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell>{formatDateBR(sale.date)}</TableCell>

@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
 import { useClients } from '@/contexts/ClientsContext';
 import { useListings, DetailedListingStatus } from '@/contexts/ListingsContext';
-import { useSales } from '@/contexts/SalesContext';
+import { useSales, SaleType } from '@/contexts/SalesContext';
 import { useMeetings } from '@/contexts/MeetingsContext';
 import { useExpenses } from '@/contexts/ExpensesContext';
 import { TaskBoard } from '@/components/tasks/TaskBoard';
@@ -42,7 +42,8 @@ import {
   DollarSign,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  Building2
 } from "lucide-react";
 import { formatDateBR } from "@/lib/utils";
 
@@ -83,11 +84,11 @@ const BrokerDetails = () => {
 
   const { getBrokerById, refreshBrokers } = useBrokers();
   const { clients, addClient, updateClient, deleteClient, loading: clientsLoading } = useClients();
-  const { 
-    listings, 
-    createListing, 
-    updateListing, 
-    deleteListing, 
+  const {
+    listings,
+    createListing,
+    updateListing,
+    deleteListing,
     getListingsByBrokerId,
     getAggregateQuantity,
     updateAggregateQuantity,
@@ -210,7 +211,7 @@ const BrokerDetails = () => {
       metricValues: {} as Record<PerformanceMetricType, { targetValue: string; currentValue: string }>,
     };
   };
-    
+
   // Carrega os dados dos contextos quando o brokerId ou os dados mudam
   useEffect(() => {
     if (!brokerId) return;
@@ -236,7 +237,10 @@ const BrokerDetails = () => {
         id: s.id,
         description: s.propertyAddress,
         value: s.saleValue,
-        date: s.saleDate
+        date: s.saleDate,
+        saleType: s.saleType || 'revenda',
+        clientName: s.clientName,
+        commission: s.commission
       })),
       meetings: brokerMeetings.map(m => ({
         id: m.id,
@@ -286,14 +290,14 @@ const BrokerDetails = () => {
   const [selectedPropertyType, setSelectedPropertyType] = useState<'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara' | null>(null);
 
   // Form states
-  const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
-  const [newListing, setNewListing] = useState({ 
-    propertyType: "Apartamento", 
-    quantity: "1", 
-    status: "Ativo", 
-    date: new Date().toISOString().split('T')[0], 
-    propertyAddress: "", 
-    propertyValue: "" 
+  const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "", saleType: "revenda" as SaleType });
+  const [newListing, setNewListing] = useState({
+    propertyType: "Apartamento",
+    quantity: "1",
+    status: "Ativo",
+    date: new Date().toISOString().split('T')[0],
+    propertyAddress: "",
+    propertyValue: ""
   });
   const [newMeeting, setNewMeeting] = useState({ clientName: "", meetingType: "", notes: "", date: "" });
   const [meetingSummary, setMeetingSummary] = useState("");
@@ -340,12 +344,12 @@ const BrokerDetails = () => {
     });
   }, [sortedBrokerChallenges]);
 
-// Limpa os valores dos sliders quando o desafio selecionado muda
-useEffect(() => {
-  if (selectedChallengeId) {
-    // Não limpa todos os valores, mas podemos adicionar um efeito se necessário
-  }
-}, [selectedChallengeId]);
+  // Limpa os valores dos sliders quando o desafio selecionado muda
+  useEffect(() => {
+    if (selectedChallengeId) {
+      // Não limpa todos os valores, mas podemos adicionar um efeito se necessário
+    }
+  }, [selectedChallengeId]);
 
   const displayChallenges = useMemo(
     () =>
@@ -402,11 +406,11 @@ useEffect(() => {
 
     if (challenge) {
       setEditingChallenge(challenge);
-      
+
       const selectedMetrics = new Set<PerformanceMetricType>(
         challenge.targets.map(t => t.metricType)
       );
-      
+
       const metricValues = challenge.targets.reduce((acc, target) => {
         acc[target.metricType] = {
           targetValue: target.targetValue.toString(),
@@ -414,7 +418,7 @@ useEffect(() => {
         };
         return acc;
       }, {} as Record<PerformanceMetricType, { targetValue: string; currentValue: string }>);
-      
+
       setChallengeForm({
         title: challenge.title,
         description: challenge.description || '',
@@ -442,7 +446,7 @@ useEffect(() => {
     setChallengeForm((prev) => {
       const newSelectedMetrics = new Set(prev.selectedMetrics);
       const newMetricValues = { ...prev.metricValues };
-      
+
       if (checked) {
         newSelectedMetrics.add(metricType);
         if (!newMetricValues[metricType]) {
@@ -452,7 +456,7 @@ useEffect(() => {
         newSelectedMetrics.delete(metricType);
         delete newMetricValues[metricType];
       }
-      
+
       return {
         ...prev,
         selectedMetrics: newSelectedMetrics,
@@ -483,14 +487,14 @@ useEffect(() => {
       .map((metricType) => {
         const values = challengeForm.metricValues[metricType];
         if (!values) return null;
-        
+
         return {
           metricType,
           targetValue: Number(values.targetValue),
           currentValue: values.currentValue ? Number(values.currentValue) : 0,
         };
       })
-      .filter((target): target is NonNullable<typeof target> => 
+      .filter((target): target is NonNullable<typeof target> =>
         target !== null && Number.isFinite(target.targetValue) && target.targetValue > 0
       );
 
@@ -700,7 +704,7 @@ useEffect(() => {
 
   const handleSliderChange = async (challengeId: string, targetId: string, newValue: number) => {
     const roundedValue = Math.round(newValue);
-    
+
     // Atualiza os valores dos sliders no estado local para UI responsiva
     setSliderValues(prev => ({
       ...prev,
@@ -721,21 +725,21 @@ useEffect(() => {
         delete updated[`${challengeId}-${targetId}`];
         return updated;
       });
-      toast({ 
-        title: "Erro", 
-        description: "Não foi possível atualizar o progresso do indicador", 
-        variant: "destructive" 
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o progresso do indicador",
+        variant: "destructive"
       });
     }
   };
 
   const getModifiedTargets = (challenge: PerformanceChallenge | null) => {
     if (!challenge) return [];
-    
+
     return challenge.targets.map(target => {
       const sliderKey = `${challenge.id}-${target.id}`;
       const modifiedValue = sliderValues[sliderKey];
-      
+
       if (modifiedValue !== undefined) {
         // Calcula o novo progresso com base no valor modificado (usando inteiros)
         const targetInt = Math.round(target.targetValue);
@@ -743,14 +747,14 @@ useEffect(() => {
         const newProgress = targetInt > 0
           ? Math.min(Math.max((modifiedInt / targetInt) * 100, 0), 100)
           : 0;
-          
+
         return {
           ...target,
           currentValue: modifiedInt,
           progress: newProgress
         };
       }
-      
+
       return {
         ...target,
         currentValue: Math.round(target.currentValue),
@@ -777,7 +781,8 @@ useEffect(() => {
           clientName: newSale.clientName,
           saleValue: parseFloat(newSale.saleValue),
           commission: parseFloat(newSale.commission),
-          saleDate: newSale.date
+          saleDate: newSale.date,
+          saleType: newSale.saleType
         });
         toast({ title: "Sucesso", description: "Venda atualizada com sucesso!" });
       } else {
@@ -787,22 +792,23 @@ useEffect(() => {
           clientName: newSale.clientName,
           saleValue: parseFloat(newSale.saleValue),
           commission: parseFloat(newSale.commission),
-          saleDate: newSale.date
+          saleDate: newSale.date,
+          saleType: newSale.saleType
         });
         toast({ title: "Sucesso", description: "Venda adicionada com sucesso!" });
       }
 
-      setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
+      setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "", saleType: "revenda" as SaleType });
       setEditingSaleId(null);
       setSalesModalOpen(false);
-      
+
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao salvar venda:", error);
-      toast({ 
-        title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao salvar venda", 
-        variant: "destructive" 
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar venda",
+        variant: "destructive"
       });
     }
   };
@@ -810,10 +816,11 @@ useEffect(() => {
   const handleEditSale = (sale: any) => {
     setNewSale({
       propertyAddress: sale.description,
-      clientName: "",
+      clientName: sale.clientName || "",
       saleValue: sale.value.toString(),
-      commission: "",
-      date: sale.date
+      commission: sale.commission?.toString() || "",
+      date: sale.date,
+      saleType: sale.saleType || "revenda"
     });
     setEditingSaleId(sale.id);
     setSalesModalOpen(true);
@@ -870,24 +877,24 @@ useEffect(() => {
         toast({ title: "Sucesso", description: "Captação adicionada com sucesso!" });
       }
 
-      setNewListing({ 
-        propertyType: "Apartamento", 
-        quantity: "1", 
-        status: "Ativo", 
-        date: new Date().toISOString().split('T')[0], 
-        propertyAddress: "", 
-        propertyValue: "" 
+      setNewListing({
+        propertyType: "Apartamento",
+        quantity: "1",
+        status: "Ativo",
+        date: new Date().toISOString().split('T')[0],
+        propertyAddress: "",
+        propertyValue: ""
       });
       setEditingListingId(null);
       setListingsModalOpen(false);
-      
+
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao salvar captação:", error);
-      toast({ 
-        title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao salvar captação", 
-        variant: "destructive" 
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar captação",
+        variant: "destructive"
       });
     }
   };
@@ -954,14 +961,14 @@ useEffect(() => {
       setNewMeeting({ clientName: "", meetingType: "", notes: "", date: "" });
       setEditingMeetingId(null);
       setMeetingsModalOpen(false);
-      
+
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao salvar reunião:", error);
-      toast({ 
-        title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao salvar reunião", 
-        variant: "destructive" 
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar reunião",
+        variant: "destructive"
       });
     }
   };
@@ -1058,14 +1065,14 @@ useEffect(() => {
       setNewExpense({ description: "", amount: "", category: "", date: "" });
       setEditingExpenseId(null);
       setExpensesModalOpen(false);
-      
+
       // O useEffect vai recarregar automaticamente os dados
     } catch (error) {
       console.error("Erro ao salvar gasto:", error);
-      toast({ 
-        title: "Erro", 
-        description: error instanceof Error ? error.message : "Erro ao salvar gasto", 
-        variant: "destructive" 
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar gasto",
+        variant: "destructive"
       });
     }
   };
@@ -1109,18 +1116,18 @@ useEffect(() => {
   };
 
   const resetSaleForm = () => {
-    setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "" });
+    setNewSale({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "", saleType: "revenda" as SaleType });
     setEditingSaleId(null);
   };
 
   const resetListingForm = () => {
-    setNewListing({ 
-      propertyType: "Apartamento", 
-      quantity: "1", 
-      status: "Ativo", 
-      date: new Date().toISOString().split('T')[0], 
-      propertyAddress: "", 
-      propertyValue: "" 
+    setNewListing({
+      propertyType: "Apartamento",
+      quantity: "1",
+      status: "Ativo",
+      date: new Date().toISOString().split('T')[0],
+      propertyAddress: "",
+      propertyValue: ""
     });
     setEditingListingId(null);
   };
@@ -1196,19 +1203,19 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumbs */}
         {!isOwnProfile && (
-          <Breadcrumbs 
+          <Breadcrumbs
             items={[
               { label: "Corretores", href: "/brokers" },
               { label: brokerData.name || "Detalhes" }
-            ]} 
+            ]}
             className="mb-6"
           />
         )}
-        
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
@@ -1355,7 +1362,7 @@ useEffect(() => {
                   {selectedChallenge ? (
                     <>
                       {/* Cards de Métricas Principais */}
-                      
+
 
                       {/* Grid Principal com Gráfico e Painel de Controle */}
                       <div className="grid gap-6 lg:grid-cols-3">
@@ -1366,7 +1373,7 @@ useEffect(() => {
                             title={selectedChallenge ? `Progresso de "${selectedChallenge.title}"` : "Progresso dos indicadores"}
                           />
                         </div>
-                        
+
                         {/* Coluna Direita - Painel de Controle */}
                         <div className="space-y-4">
                           <PerformanceControlPanel
@@ -1585,14 +1592,14 @@ useEffect(() => {
                             <div
                               className="h-3 w-3 rounded-full"
                               style={{
-                                backgroundColor: 
+                                backgroundColor:
                                   client.status_color === 'green' ? '#22c55e' :
-                                  client.status_color === 'red' ? '#ef4444' :
-                                  client.status_color === 'yellow' ? '#eab308' :
-                                  client.status_color === 'blue' ? '#3b82f6' :
-                                  client.status_color === 'purple' ? '#a855f7' :
-                                  client.status_color === 'orange' ? '#f97316' :
-                                  '#22c55e'
+                                    client.status_color === 'red' ? '#ef4444' :
+                                      client.status_color === 'yellow' ? '#eab308' :
+                                        client.status_color === 'blue' ? '#3b82f6' :
+                                          client.status_color === 'purple' ? '#a855f7' :
+                                            client.status_color === 'orange' ? '#f97316' :
+                                              '#22c55e'
                               }}
                             />
                           </TableCell>
@@ -1634,6 +1641,47 @@ useEffect(() => {
           </TabsContent>
 
           <TabsContent value="sales">
+            {/* Cards de VGV por Tipo */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="rounded-lg bg-muted/40 border p-4">
+                <p className="text-sm text-muted-foreground">VGV Total</p>
+                <p className="text-2xl font-bold mt-1">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    brokerData.sales.reduce((sum, s) => sum + s.value, 0)
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">{brokerData.sales.length} vendas</p>
+              </div>
+              <div className="rounded-lg bg-muted/40 border border-l-4 border-l-orange-500 p-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-orange-500" />
+                  <p className="text-sm text-muted-foreground">VGV Lançamento</p>
+                </div>
+                <p className="text-2xl font-bold text-orange-600 mt-1">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    brokerData.sales.filter(s => s.saleType === 'lancamento').reduce((sum, s) => sum + s.value, 0)
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {brokerData.sales.filter(s => s.saleType === 'lancamento').length} vendas
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/40 border border-l-4 border-l-emerald-500 p-4">
+                <div className="flex items-center gap-2">
+                  <Home className="h-4 w-4 text-emerald-500" />
+                  <p className="text-sm text-muted-foreground">VGV Revenda</p>
+                </div>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    brokerData.sales.filter(s => s.saleType === 'revenda').reduce((sum, s) => sum + s.value, 0)
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {brokerData.sales.filter(s => s.saleType === 'revenda').length} vendas
+                </p>
+              </div>
+            </div>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Vendas Realizadas</CardTitle>
@@ -1650,12 +1698,37 @@ useEffect(() => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
+                        <Label htmlFor="sale-type">Tipo de Venda *</Label>
+                        <Select
+                          value={newSale.saleType}
+                          onValueChange={(value: SaleType) => setNewSale({ ...newSale, saleType: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="lancamento">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-orange-500" />
+                                <span>Lançamento</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="revenda">
+                              <div className="flex items-center gap-2">
+                                <Home className="h-4 w-4 text-emerald-500" />
+                                <span>Revenda</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
                         <Label htmlFor="sale-property">Endereço do Imóvel *</Label>
                         <Input
                           id="sale-property"
                           placeholder="Ex: Apartamento Vila Olímpia"
                           value={newSale.propertyAddress}
-                          onChange={(e) => setNewSale({...newSale, propertyAddress: e.target.value})}
+                          onChange={(e) => setNewSale({ ...newSale, propertyAddress: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1664,7 +1737,7 @@ useEffect(() => {
                           id="sale-client"
                           placeholder="Ex: Maria Silva"
                           value={newSale.clientName}
-                          onChange={(e) => setNewSale({...newSale, clientName: e.target.value})}
+                          onChange={(e) => setNewSale({ ...newSale, clientName: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1674,7 +1747,7 @@ useEffect(() => {
                           type="number"
                           placeholder="450000"
                           value={newSale.saleValue}
-                          onChange={(e) => setNewSale({...newSale, saleValue: e.target.value})}
+                          onChange={(e) => setNewSale({ ...newSale, saleValue: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1684,7 +1757,7 @@ useEffect(() => {
                           type="number"
                           placeholder="13500"
                           value={newSale.commission}
-                          onChange={(e) => setNewSale({...newSale, commission: e.target.value})}
+                          onChange={(e) => setNewSale({ ...newSale, commission: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1693,7 +1766,7 @@ useEffect(() => {
                           id="sale-date"
                           type="date"
                           value={newSale.date}
-                          onChange={(e) => setNewSale({...newSale, date: e.target.value})}
+                          onChange={(e) => setNewSale({ ...newSale, date: e.target.value })}
                         />
                       </div>
                       <Button onClick={addSale} className="w-full">{editingSaleId ? "Atualizar" : "Adicionar"}</Button>
@@ -1705,11 +1778,23 @@ useEffect(() => {
                 <div className="space-y-4">
                   {brokerData.sales.map(sale => (
                     <div key={sale.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h4 className="font-semibold">{sale.description}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {formatDateBR(sale.date)}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <Badge
+                          variant="outline"
+                          className={
+                            sale.saleType === 'lancamento'
+                              ? 'border-orange-500 text-orange-600 bg-orange-50'
+                              : 'border-emerald-500 text-emerald-600 bg-emerald-50'
+                          }
+                        >
+                          {sale.saleType === 'lancamento' ? 'Lançamento' : 'Revenda'}
+                        </Badge>
+                        <div>
+                          <h4 className="font-semibold">{sale.description}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDateBR(sale.date)}
+                          </p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <p className="font-semibold text-success">
@@ -1735,7 +1820,7 @@ useEffect(() => {
           <TabsContent value="listings">
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Captações por Tipo de Imóvel</h3>
-              
+
               {/* Grid de Colunas Responsivo */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {(['Apartamento', 'Casa', 'Sobrado', 'Lote', 'Chácara'] as const).map((propertyType) => (
@@ -1749,15 +1834,15 @@ useEffect(() => {
                       try {
                         await updateAggregateQuantity(brokerId!, propertyType, quantity);
                         await refreshBrokers();
-                        toast({ 
-                          title: "Sucesso", 
-                          description: `Quantidade de ${propertyType} atualizada para ${quantity}` 
+                        toast({
+                          title: "Sucesso",
+                          description: `Quantidade de ${propertyType} atualizada para ${quantity}`
                         });
                       } catch (error) {
-                        toast({ 
-                          title: "Erro", 
-                          description: "Erro ao atualizar quantidade", 
-                          variant: "destructive" 
+                        toast({
+                          title: "Erro",
+                          description: "Erro ao atualizar quantidade",
+                          variant: "destructive"
                         });
                       }
                     }}
@@ -1791,10 +1876,10 @@ useEffect(() => {
                     }}
                     onAddDetailed={() => {
                       setSelectedPropertyType(propertyType);
-                      setNewListing({ 
-                        propertyType, 
-                        quantity: "1", 
-                        status: "Ativo", 
+                      setNewListing({
+                        propertyType,
+                        quantity: "1",
+                        status: "Ativo",
                         date: new Date().toISOString().split('T')[0],
                         propertyAddress: "",
                         propertyValue: ""
@@ -1809,8 +1894,8 @@ useEffect(() => {
               </div>
 
               {/* Dialog para Adicionar/Editar Captação Detalhada */}
-              <Dialog open={listingsModalOpen} onOpenChange={(open) => { 
-                setListingsModalOpen(open); 
+              <Dialog open={listingsModalOpen} onOpenChange={(open) => {
+                setListingsModalOpen(open);
                 if (!open) {
                   resetListingForm();
                   setSelectedPropertyType(null);
@@ -1825,7 +1910,7 @@ useEffect(() => {
                       <Label htmlFor="listing-type">Tipo de Imóvel *</Label>
                       <Select
                         value={newListing.propertyType}
-                        onValueChange={(value) => setNewListing({...newListing, propertyType: value})}
+                        onValueChange={(value) => setNewListing({ ...newListing, propertyType: value })}
                         disabled={selectedPropertyType !== null && !editingListingId}
                       >
                         <SelectTrigger id="listing-type">
@@ -1848,7 +1933,7 @@ useEffect(() => {
                         min="1"
                         placeholder="Ex: 1"
                         value={newListing.quantity}
-                        onChange={(e) => setNewListing({...newListing, quantity: e.target.value})}
+                        onChange={(e) => setNewListing({ ...newListing, quantity: e.target.value })}
                       />
                     </div>
                     <div>
@@ -1858,7 +1943,7 @@ useEffect(() => {
                         type="text"
                         placeholder="Ex: Rua das Flores, 123 - Centro"
                         value={newListing.propertyAddress}
-                        onChange={(e) => setNewListing({...newListing, propertyAddress: e.target.value})}
+                        onChange={(e) => setNewListing({ ...newListing, propertyAddress: e.target.value })}
                       />
                     </div>
                     <div>
@@ -1870,14 +1955,14 @@ useEffect(() => {
                         step="0.01"
                         placeholder="Ex: 450000"
                         value={newListing.propertyValue}
-                        onChange={(e) => setNewListing({...newListing, propertyValue: e.target.value})}
+                        onChange={(e) => setNewListing({ ...newListing, propertyValue: e.target.value })}
                       />
                     </div>
                     <div>
                       <Label htmlFor="listing-status">Status</Label>
                       <Select
                         value={newListing.status}
-                        onValueChange={(value) => setNewListing({...newListing, status: value})}
+                        onValueChange={(value) => setNewListing({ ...newListing, status: value })}
                       >
                         <SelectTrigger id="listing-status">
                           <SelectValue />
@@ -1896,7 +1981,7 @@ useEffect(() => {
                         id="listing-date"
                         type="date"
                         value={newListing.date}
-                        onChange={(e) => setNewListing({...newListing, date: e.target.value})}
+                        onChange={(e) => setNewListing({ ...newListing, date: e.target.value })}
                       />
                     </div>
                     <Button onClick={addListing} className="w-full">{editingListingId ? "Atualizar" : "Adicionar"}</Button>
@@ -1928,7 +2013,7 @@ useEffect(() => {
                           id="meeting-client"
                           placeholder="Ex: João Santos"
                           value={newMeeting.clientName}
-                          onChange={(e) => setNewMeeting({...newMeeting, clientName: e.target.value})}
+                          onChange={(e) => setNewMeeting({ ...newMeeting, clientName: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1937,7 +2022,7 @@ useEffect(() => {
                           id="meeting-type"
                           placeholder="Ex: Planejamento, Visita, Negociação"
                           value={newMeeting.meetingType}
-                          onChange={(e) => setNewMeeting({...newMeeting, meetingType: e.target.value})}
+                          onChange={(e) => setNewMeeting({ ...newMeeting, meetingType: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1946,7 +2031,7 @@ useEffect(() => {
                           id="meeting-notes"
                           placeholder="Definir metas de captação e vendas..."
                           value={newMeeting.notes}
-                          onChange={(e) => setNewMeeting({...newMeeting, notes: e.target.value})}
+                          onChange={(e) => setNewMeeting({ ...newMeeting, notes: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1955,7 +2040,7 @@ useEffect(() => {
                           id="meeting-date"
                           type="datetime-local"
                           value={newMeeting.date}
-                          onChange={(e) => setNewMeeting({...newMeeting, date: e.target.value})}
+                          onChange={(e) => setNewMeeting({ ...newMeeting, date: e.target.value })}
                         />
                       </div>
                       <Button onClick={addMeeting} className="w-full">{editingMeetingId ? "Atualizar" : "Adicionar"}</Button>
@@ -1979,17 +2064,17 @@ useEffect(() => {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">
-                            {new Date(meeting.date).toLocaleDateString('pt-BR', { 
-                              day: '2-digit', 
-                              month: '2-digit', 
+                            {new Date(meeting.date).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
                           </Badge>
                           {meeting.status === 'pending' && (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => handleOpenCompleteMeetingModal(meeting.id)}
                             >
@@ -2040,8 +2125,8 @@ useEffect(() => {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex-1"
                       onClick={() => {
                         setCompleteMeetingModalOpen(false);
@@ -2051,8 +2136,8 @@ useEffect(() => {
                     >
                       Cancelar
                     </Button>
-                    <Button 
-                      onClick={handleCompleteMeeting} 
+                    <Button
+                      onClick={handleCompleteMeeting}
                       className="flex-1"
                     >
                       Finalizar Reunião
@@ -2085,7 +2170,7 @@ useEffect(() => {
                           id="expense-description"
                           placeholder="Ex: Gasolina"
                           value={newExpense.description}
-                          onChange={(e) => setNewExpense({...newExpense, description: e.target.value})}
+                          onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
                         />
                       </div>
                       <div>
@@ -2094,7 +2179,7 @@ useEffect(() => {
                           id="expense-category"
                           placeholder="Ex: Transporte, Marketing, Escritório"
                           value={newExpense.category}
-                          onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
+                          onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
                         />
                       </div>
                       <div>
@@ -2104,7 +2189,7 @@ useEffect(() => {
                           type="number"
                           placeholder="150"
                           value={newExpense.amount}
-                          onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+                          onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
                         />
                       </div>
                       <div>
@@ -2113,7 +2198,7 @@ useEffect(() => {
                           id="expense-date"
                           type="date"
                           value={newExpense.date}
-                          onChange={(e) => setNewExpense({...newExpense, date: e.target.value})}
+                          onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
                         />
                       </div>
                       <Button onClick={addExpense} className="w-full">{editingExpenseId ? "Atualizar" : "Adicionar"}</Button>
@@ -2300,20 +2385,19 @@ useEffect(() => {
                       </Badge>
                     )}
                   </div>
-                  
+
                   <div className="space-y-3">
                     {metricOptions.map((metricType) => {
                       const isSelected = challengeForm.selectedMetrics.has(metricType);
                       const values = challengeForm.metricValues[metricType] || { targetValue: '', currentValue: '0' };
-                      
+
                       return (
-                        <div 
-                          key={metricType} 
-                          className={`rounded-lg border transition-all ${
-                            isSelected 
-                              ? 'bg-primary/5 border-primary/40 shadow-sm' 
-                              : 'bg-card hover:bg-muted/20 border-border'
-                          }`}
+                        <div
+                          key={metricType}
+                          className={`rounded-lg border transition-all ${isSelected
+                            ? 'bg-primary/5 border-primary/40 shadow-sm'
+                            : 'bg-card hover:bg-muted/20 border-border'
+                            }`}
                         >
                           {/* Checkbox e Label do Indicador */}
                           <div className="flex items-center space-x-3 p-4">

@@ -13,11 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pagination } from "@/components/Pagination";
-import { useSales } from "@/contexts/SalesContext";
+import { useSales, SaleType } from "@/contexts/SalesContext";
 import { useListings } from "@/contexts/ListingsContext";
 import { useBrokers } from "@/contexts/BrokersContext";
 import { parseIsoDate } from "@/lib/utils";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Building2, Home } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR");
 const CURRENCY_FORMATTER = new Intl.NumberFormat("pt-BR", {
@@ -37,6 +38,7 @@ type SalesRow = {
   value: number;
   commission: number;
   broker: string;
+  saleType: SaleType;
 };
 
 type ListingsRow = {
@@ -179,6 +181,7 @@ const DashboardMetricDetails = () => {
           value: sale.saleValue || 0,
           commission: sale.commission || 0,
           broker: brokerNameMap[sale.brokerId] ?? "-",
+          saleType: sale.saleType || 'revenda',
         };
       });
   }, [brokerFilterFn, brokerNameMap, dateFilterFn, sales]);
@@ -207,6 +210,7 @@ const DashboardMetricDetails = () => {
   const columns = useMemo<ColumnDefinition[]>(() => {
     if (metricKey === "sales") {
       return [
+        { key: "saleType", label: "Tipo" },
         { key: "property", label: "Endereço do Imóvel" },
         { key: "date", label: "Data" },
         { key: "client", label: "Cliente" },
@@ -291,6 +295,13 @@ const DashboardMetricDetails = () => {
     if (metricKey === "sales") {
       const totalValue = salesRows.reduce((acc, row) => acc + row.value, 0);
       const totalCommission = salesRows.reduce((acc, row) => acc + row.commission, 0);
+
+      // Calcular VGV por tipo de venda
+      const lancamentoRows = salesRows.filter(row => row.saleType === 'lancamento');
+      const revendaRows = salesRows.filter(row => row.saleType === 'revenda');
+      const vgvLancamento = lancamentoRows.reduce((acc, row) => acc + row.value, 0);
+      const vgvRevenda = revendaRows.reduce((acc, row) => acc + row.value, 0);
+
       return {
         title: "Detalhamento de Vendas",
         subtitle: `Período: ${periodLabel}`,
@@ -300,6 +311,18 @@ const DashboardMetricDetails = () => {
           { label: "Valor Total", value: CURRENCY_FORMATTER.format(totalValue) },
           { label: "Comissões", value: CURRENCY_FORMATTER.format(totalCommission) },
         ],
+        vgvByType: {
+          lancamento: {
+            count: lancamentoRows.length,
+            value: vgvLancamento,
+            percentage: totalValue > 0 ? (vgvLancamento / totalValue) * 100 : 0,
+          },
+          revenda: {
+            count: revendaRows.length,
+            value: vgvRevenda,
+            percentage: totalValue > 0 ? (vgvRevenda / totalValue) * 100 : 0,
+          },
+        },
       };
     }
 
@@ -397,6 +420,50 @@ const DashboardMetricDetails = () => {
                 </p>
               )}
             </div>
+
+            {/* Cards de VGV por Tipo de Venda */}
+            {metricKey === "sales" && 'vgvByType' in summary && summary.vgvByType && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="rounded-lg border-l-4 border-l-orange-500 bg-muted/40 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-orange-500" />
+                        <p className="text-sm font-medium">VGV Lançamento</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {summary.vgvByType.lancamento.count} {summary.vgvByType.lancamento.count === 1 ? 'venda' : 'vendas'}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-orange-600 mt-2">
+                    {CURRENCY_FORMATTER.format(summary.vgvByType.lancamento.value)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {summary.vgvByType.lancamento.percentage.toFixed(1)}% do total
+                  </p>
+                </div>
+                <div className="rounded-lg border-l-4 border-l-emerald-500 bg-muted/40 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Home className="h-5 w-5 text-emerald-500" />
+                        <p className="text-sm font-medium">VGV Revenda</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {summary.vgvByType.revenda.count} {summary.vgvByType.revenda.count === 1 ? 'venda' : 'vendas'}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">
+                    {CURRENCY_FORMATTER.format(summary.vgvByType.revenda.value)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {summary.vgvByType.revenda.percentage.toFixed(1)}% do total
+                  </p>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -442,6 +509,24 @@ const DashboardMetricDetails = () => {
                           if (column.key === "date") {
                             return (
                               <TableCell key={column.key as string}>{formatDate((row as SalesRow).date)}</TableCell>
+                            );
+                          }
+
+                          if (column.key === "saleType") {
+                            const saleType = (row as SalesRow).saleType;
+                            return (
+                              <TableCell key={column.key as string}>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    saleType === 'lancamento'
+                                      ? 'border-orange-500 text-orange-600 bg-orange-50'
+                                      : 'border-emerald-500 text-emerald-600 bg-emerald-50'
+                                  }
+                                >
+                                  {saleType === 'lancamento' ? 'Lançamento' : 'Revenda'}
+                                </Badge>
+                              </TableCell>
                             );
                           }
 
