@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MetricCard } from "@/components/MetricCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -249,6 +249,19 @@ export const TaskBoard = ({
     }),
   );
 
+  // Force clear form when modal closes
+  useEffect(() => {
+    if (!isModalOpen && !editingTask) {
+      setFormData({
+        title: "",
+        description: "",
+        dueDate: "",
+        status: "Backlog",
+        priority: "Média",
+      });
+    }
+  }, [isModalOpen, editingTask]);
+
   const columns: { status: TaskStatus; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { status: "Backlog", title: "Backlog", icon: FileText },
     { status: "Em Progresso", title: "Em Progresso", icon: Play },
@@ -365,6 +378,7 @@ export const TaskBoard = ({
   };
 
   const openModal = (status?: TaskStatus) => {
+    setEditingTask(null);
     setFormData({
       title: "",
       description: "",
@@ -372,11 +386,11 @@ export const TaskBoard = ({
       status: status || "Backlog",
       priority: "Média",
     });
-    setEditingTask(null);
     setIsModalOpen(true);
   };
 
   const editTask = (task: Task) => {
+    setEditingTask(task);
     setFormData({
       title: task.title,
       description: task.description || "",
@@ -384,7 +398,6 @@ export const TaskBoard = ({
       status: task.status,
       priority: task.priority,
     });
-    setEditingTask(task);
     setIsModalOpen(true);
   };
 
@@ -403,6 +416,16 @@ export const TaskBoard = ({
       updateTask(editingTask.id, payload, { optimistic: true })
         .then(() => {
           toast({ title: "Sucesso", description: "Tarefa atualizada com sucesso" });
+          setIsModalOpen(false);
+          // Reset form after update
+          setFormData({
+            title: "",
+            description: "",
+            dueDate: "",
+            status: "Backlog",
+            priority: "Média",
+          });
+          setEditingTask(null);
         })
         .catch((err) => {
           console.error(err);
@@ -412,14 +435,21 @@ export const TaskBoard = ({
       createTask(payload, { optimistic: true })
         .then(() => {
           toast({ title: "Sucesso", description: "Tarefa criada com sucesso" });
+          setIsModalOpen(false);
+          // Reset form after create
+          setFormData({
+            title: "",
+            description: "",
+            dueDate: "",
+            status: "Backlog",
+            priority: "Média",
+          });
         })
         .catch((err) => {
           console.error(err);
           toast({ title: "Erro", description: "Não foi possível criar a tarefa", variant: "destructive" });
         });
     }
-
-    setIsModalOpen(false);
   };
 
   const deleteTask = (taskId: string) => {
@@ -461,14 +491,43 @@ export const TaskBoard = ({
               className="pl-9"
             />
           </div>
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <Dialog open={isModalOpen} onOpenChange={(open) => {
+            if (open && !editingTask) {
+              // Reset form BEFORE opening when creating new task
+              setFormData({
+                title: "",
+                description: "",
+                dueDate: "",
+                status: "Backlog",
+                priority: "Média",
+              });
+              setEditingTask(null);
+            }
+            
+            setIsModalOpen(open);
+            
+            if (!open) {
+              // Also reset when closing
+              setFormData({
+                title: "",
+                description: "",
+                dueDate: "",
+                status: "Backlog",
+                priority: "Média",
+              });
+              setEditingTask(null);
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button className="bg-pink-700 hover:bg-pink-600">
+              <Button 
+                className="bg-pink-700 hover:bg-pink-600"
+                onClick={() => openModal()}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Tarefa
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent key={editingTask ? editingTask.id : 'new-task'}>
               <DialogHeader>
                 <DialogTitle>{editingTask ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
               </DialogHeader>
@@ -476,6 +535,7 @@ export const TaskBoard = ({
                 <div>
                   <Label htmlFor="task-title">Título</Label>
                   <Input
+                    key={`title-${editingTask?.id || 'new'}`}
                     id="task-title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -485,6 +545,7 @@ export const TaskBoard = ({
                 <div>
                   <Label htmlFor="task-description">Descrição</Label>
                   <Textarea
+                    key={`description-${editingTask?.id || 'new'}`}
                     id="task-description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -497,6 +558,7 @@ export const TaskBoard = ({
                   <div>
                     <Label htmlFor="task-due-date">Data</Label>
                     <Input
+                      key={`date-${editingTask?.id || 'new'}`}
                       id="task-due-date"
                       type="date"
                       value={formData.dueDate}
