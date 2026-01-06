@@ -37,7 +37,8 @@ const Dashboard = () => {
   
   // Get available years from sales data
   const availableYears = useMemo(() => {
-    const years = new Set<number>();
+    const currentYear = new Date().getFullYear();
+    const years = new Set<number>([currentYear]); // Always include current year
     sales.forEach(sale => {
       const date = parseIsoDate(sale.saleDate);
       if (date) years.add(date.getFullYear());
@@ -50,9 +51,9 @@ const Dashboard = () => {
       const date = parseIsoDate(expense.expenseDate);
       if (date) years.add(date.getFullYear());
     });
-    
+
     const sortedYears = Array.from(years).sort((a, b) => b - a);
-    return sortedYears.length > 0 ? sortedYears : [new Date().getFullYear()];
+    return sortedYears;
   }, [sales, listings, expenses]);
   
   // Filter data based on selected period and broker
