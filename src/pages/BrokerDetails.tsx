@@ -138,7 +138,7 @@ const BrokerDetails = () => {
   }));
 
   // Filter clients for this broker
-  const brokerClients = clients.filter(client => client.broker_id === brokerId);
+  const brokerClientsRaw = clients.filter(client => client.broker_id === brokerId);
   const brokerListings = brokerId ? getListingsByBrokerId(brokerId) : [];
   const brokerChallenges = brokerId ? getChallengesByBrokerId(brokerId) : [];
 
@@ -312,6 +312,21 @@ const BrokerDetails = () => {
   // Date filter states
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState("all");
+
+  // Filter clients with date filtering
+  const brokerClients = useMemo(() => {
+    const year = selectedYear === "all" ? null : parseInt(selectedYear);
+    const month = selectedMonth === "all" ? null : parseInt(selectedMonth);
+
+    return brokerClientsRaw.filter(client => {
+      // Apply date filter to created_at
+      const date = parseIsoDate(client.created_at);
+      if (!date) return true; // Include if date parsing fails
+      if (year !== null && date.getFullYear() !== year) return false;
+      if (month !== null && date.getMonth() !== month) return false;
+      return true;
+    });
+  }, [brokerClientsRaw, selectedYear, selectedMonth]);
 
   // Form states
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "", saleType: "revenda" as SaleType });
