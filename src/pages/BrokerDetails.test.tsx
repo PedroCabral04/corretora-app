@@ -80,7 +80,7 @@ describe('BrokerDetails - CRUD Operations', () => {
       propertyType: 'Apartamento' as const,
       quantity: 1,
       status: 'Ativo' as const,
-      listingDate: '2024-01-15',
+      listingDate: '2026-01-15',
       propertyAddress: 'Rua Teste, 123',
       propertyValue: 500000,
     },
@@ -94,7 +94,7 @@ describe('BrokerDetails - CRUD Operations', () => {
       clientName: 'Cliente Comprador',
       saleValue: 750000,
       commission: 22500,
-      saleDate: '2024-01-20',
+      saleDate: '2026-01-20',
     },
   ];
 
@@ -104,7 +104,7 @@ describe('BrokerDetails - CRUD Operations', () => {
       brokerId: 'broker-123',
       clientName: 'Cliente Reunião',
       meetingType: 'Apresentação',
-      meetingDate: '2024-01-25',
+      meetingDate: '2026-01-25',
       status: 'Agendada' as const,
       notes: 'Primeira reunião',
       summary: null,
@@ -118,7 +118,7 @@ describe('BrokerDetails - CRUD Operations', () => {
       description: 'Gasolina',
       amount: 200,
       category: 'Transporte',
-      expenseDate: '2024-01-10',
+      expenseDate: '2026-01-10',
     },
   ];
 
@@ -155,7 +155,7 @@ describe('BrokerDetails - CRUD Operations', () => {
         getListingsByBrokerId: vi.fn(() => mockListings),
         getAggregateQuantity: vi.fn(),
         updateAggregateQuantity: vi.fn(),
-        getDetailedListingsByType: vi.fn(),
+        getDetailedListingsByType: vi.fn(() => []),
         getStatusAggregateQuantity: vi.fn().mockReturnValue(0),
         updateStatusAggregateQuantity: vi.fn(),
       },
@@ -216,8 +216,8 @@ describe('BrokerDetails - CRUD Operations', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('metric-Vendas no Ano')).toHaveTextContent('1');
-        expect(screen.getByTestId('metric-Captações')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-Vendas no Período')).toHaveTextContent('1');
+        expect(screen.getByTestId('metric-Captações no Período')).toHaveTextContent('1');
       });
     });
 
