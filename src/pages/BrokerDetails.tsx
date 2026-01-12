@@ -1293,6 +1293,76 @@ const BrokerDetails = () => {
     return result;
   }, [brokerId, selectedYear, selectedMonth, getDetailedListingsByType]);
 
+  // Calculate filtered aggregate quantities for each property type
+  const filteredAggregateQuantities = useMemo(() => {
+    const propertyTypes = ['Apartamento', 'Casa', 'Sobrado', 'Lote', 'Chácara'] as const;
+    const result: Record<string, number> = {};
+
+    const year = selectedYear === "all" ? null : parseInt(selectedYear);
+    const month = selectedMonth === "all" ? null : parseInt(selectedMonth);
+
+    propertyTypes.forEach(propertyType => {
+      const allListings = getDetailedListingsByType(brokerId!, propertyType);
+
+      // Filter by selected date period and sum quantities
+      const filteredListings = allListings.filter(listing => {
+        const date = parseIsoDate(listing.listingDate);
+        if (!date) return false;
+        if (year !== null && date.getFullYear() !== year) return false;
+        if (month !== null && date.getMonth() !== month) return false;
+        return true;
+      });
+
+      // Sum the quantity from filtered listings
+      result[propertyType] = filteredListings.reduce((sum, listing) => {
+        const parsed = Number(listing.quantity);
+        const quantity = Number.isFinite(parsed) ? parsed : 1;
+        return sum + (quantity >= 0 ? quantity : 0);
+      }, 0);
+    });
+
+    return result;
+  }, [brokerId, selectedYear, selectedMonth, getDetailedListingsByType]);
+
+  // Calculate filtered status quantities for each property type
+  const filteredStatusQuantities = useMemo(() => {
+    const propertyTypes = ['Apartamento', 'Casa', 'Sobrado', 'Lote', 'Chácara'] as const;
+    const statuses: DetailedListingStatus[] = ['Ativo', 'Moderação', 'Vendido', 'Desativado'];
+
+    const result: Record<string, Record<DetailedListingStatus, number>> = {};
+
+    const year = selectedYear === "all" ? null : parseInt(selectedYear);
+    const month = selectedMonth === "all" ? null : parseInt(selectedMonth);
+
+    propertyTypes.forEach(propertyType => {
+      result[propertyType] = {} as Record<DetailedListingStatus, number>;
+
+      const allListings = getDetailedListingsByType(brokerId!, propertyType);
+
+      // Filter by selected date period
+      const filteredListings = allListings.filter(listing => {
+        const date = parseIsoDate(listing.listingDate);
+        if (!date) return false;
+        if (year !== null && date.getFullYear() !== year) return false;
+        if (month !== null && date.getMonth() !== month) return false;
+        return true;
+      });
+
+      // Count by status
+      statuses.forEach(status => {
+        result[propertyType][status] = filteredListings
+          .filter(l => l.status === status)
+          .reduce((sum, listing) => {
+            const parsed = Number(listing.quantity);
+            const quantity = Number.isFinite(parsed) ? parsed : 1;
+            return sum + (quantity >= 0 ? quantity : 0);
+          }, 0);
+      });
+    });
+
+    return result;
+  }, [brokerId, selectedYear, selectedMonth, getDetailedListingsByType]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -1973,7 +2043,7 @@ const BrokerDetails = () => {
                     propertyType={propertyType}
                     brokerId={brokerId!}
                     listings={filteredDetailedListingsByType[propertyType] || []}
-                    aggregateQuantity={getAggregateQuantity(brokerId!, propertyType)}
+                    aggregateQuantity={filteredAggregateQuantities[propertyType] || 0}
                     onQuantityChange={async (quantity) => {
                       try {
                         await updateAggregateQuantity(brokerId!, propertyType, quantity);
@@ -1990,11 +2060,11 @@ const BrokerDetails = () => {
                         });
                       }
                     }}
-                    statusQuantities={{
-                      Ativo: getStatusAggregateQuantity(brokerId!, propertyType, 'Ativo'),
-                      Moderação: getStatusAggregateQuantity(brokerId!, propertyType, 'Moderação'),
-                      Vendido: getStatusAggregateQuantity(brokerId!, propertyType, 'Vendido'),
-                      Desativado: getStatusAggregateQuantity(brokerId!, propertyType, 'Desativado')
+                    statusQuantities={filteredStatusQuantities[propertyType] || {
+                      Ativo: 0,
+                      Moderação: 0,
+                      Vendido: 0,
+                      Desativado: 0
                     }}
                     onStatusQuantityChange={async (status: DetailedListingStatus, quantity) => {
                       try {
