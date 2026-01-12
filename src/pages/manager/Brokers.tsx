@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Navigation } from "@/components/Navigation";
 import { BrokerCard } from "@/components/BrokerCard";
 import { FilterBar } from "@/components/FilterBar";
@@ -6,38 +6,120 @@ import { Pagination } from "@/components/Pagination";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
-import { Plus, Search, UserPlus } from "lucide-react";
+import { Plus, Search, UserPlus, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrokers } from '@/contexts/BrokersContext';
+import { useSales } from '@/contexts/SalesContext';
+import { useListings } from '@/contexts/ListingsContext';
+import { useExpenses } from '@/contexts/ExpensesContext';
 import { BrokerCardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useFilterAndSort, usePagination } from "@/hooks/useFilterAndSort";
 import { maskPhone, maskCRECI, validateEmail, validatePhone, validateRequired, getErrorMessage } from "@/lib/masks";
+import { parseIsoDate } from "@/lib/utils";
+
+const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
 
 const Brokers = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { brokers, isLoading, createBroker, updateBroker, deleteBroker } = useBrokers();
+  const { brokers, isLoading, createBroker, updateBroker, deleteBroker, getBrokerById } = useBrokers();
+  const { sales } = useSales();
+  const { listings } = useListings();
+  const { expenses } = useExpenses();
   const { toast } = useToast();
-  
-  // Filter and Sort
+
+  // Date filter states
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState("all");
+
+  // Get available years from all data
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    years.add(new Date().getFullYear()); // Always include current year
+
+    sales.forEach(sale => {
+      const date = parseIsoDate(sale.saleDate);
+      if (date) years.add(date.getFullYear());
+    });
+    listings.forEach(listing => {
+      const date = parseIsoDate(listing.listingDate);
+      if (date) years.add(date.getFullYear());
+    });
+    expenses.forEach(expense => {
+      const date = parseIsoDate(expense.expenseDate);
+      if (date) years.add(date.getFullYear());
+    });
+
+    return Array.from(years).sort((a, b) => b - a);
+  }, [sales, listings, expenses]);
+
+  // Calculate brokers with filtered metrics
+  const brokersWithFilteredMetrics = useMemo(() => {
+    const year = selectedYear === "all" ? null : parseInt(selectedYear);
+    const month = selectedMonth === "all" ? null : parseInt(selectedMonth);
+
+    const filterByDate = (date: string) => {
+      const parsedDate = parseIsoDate(date);
+      if (!parsedDate) return false;
+      if (year !== null && parsedDate.getFullYear() !== year) return false;
+      if (month !== null && parsedDate.getMonth() !== month) return false;
+      return true;
+    };
+
+    return brokers.map(broker => {
+      // Filter sales for this broker
+      const brokerSales = sales.filter(s => s.brokerId === broker.id && filterByDate(s.saleDate));
+      // Filter listings for this broker
+      const brokerListings = listings.filter(l => l.brokerId === broker.id && filterByDate(l.listingDate));
+      // Filter expenses for this broker
+      const brokerExpenses = expenses.filter(e => e.brokerId === broker.id && filterByDate(e.expenseDate));
+
+      // Calculate filtered metrics
+      const totalSales = brokerSales.length;
+      const totalListings = brokerListings
+        .filter(l => l.status !== 'Agregado')
+        .reduce((acc, listing) => {
+          const parsed = Number(listing.quantity);
+          const quantity = Number.isFinite(parsed) ? parsed : 1;
+          return acc + (quantity >= 0 ? quantity : 0);
+        }, 0);
+      const totalValue = brokerSales.reduce((sum, s) => sum + s.saleValue, 0);
+      const monthlyExpenses = brokerExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+      return {
+        ...broker,
+        totalSales,
+        totalListings,
+        totalValue,
+        monthlyExpenses
+      };
+    });
+  }, [brokers, sales, listings, expenses, selectedYear, selectedMonth]);
+
+  // Update filteredBrokers to use the ones with filtered metrics
   const {
-    filteredData: filteredBrokers,
+    filteredData: filteredBrokersWithMetrics,
     searchValue,
     setSearchValue,
     sortBy,
     setSortBy,
     clearFilters,
   } = useFilterAndSort({
-    data: brokers,
+    data: brokersWithFilteredMetrics,
     searchFields: ['name', 'email', 'creci'],
   });
-  
-  // Pagination
+
+  // Recalculate pagination with filtered data
   const {
     paginatedData,
     currentPage,
@@ -46,7 +128,7 @@ const Brokers = () => {
     itemsPerPage,
     handlePageChange,
     handleItemsPerPageChange,
-  } = usePagination(filteredBrokers, 9);
+  } = usePagination(filteredBrokersWithMetrics, 9);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newBroker, setNewBroker] = useState({
@@ -390,6 +472,51 @@ const Brokers = () => {
           }}
         />
 
+        {/* Date Filters */}
+        <Card className="p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="year-filter" className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4" />
+                Ano
+              </Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger id="year-filter">
+                  <SelectValue placeholder="Selecione o ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="month-filter" className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4" />
+                Mês
+              </Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger id="month-filter">
+                  <SelectValue placeholder="Selecione o mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os meses</SelectItem>
+                  {MONTH_NAMES.map((name, index) => (
+                    <SelectItem key={index} value={index.toString()}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </Card>
+
         {/* Filtros */}
         <FilterBar
           searchPlaceholder="Buscar corretor por nome, email ou CRECI..."
@@ -416,7 +543,7 @@ const Brokers = () => {
             <BrokerCardSkeleton />
             <BrokerCardSkeleton />
           </div>
-        ) : filteredBrokers.length === 0 ? (
+        ) : filteredBrokersWithMetrics.length === 0 ? (
           <div className="mt-6">
             {brokers.length === 0 ? (
               <EmptyState
