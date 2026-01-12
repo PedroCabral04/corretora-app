@@ -164,6 +164,61 @@ vi.mock("@/components/ui/skeleton", () => ({
   BrokerCardSkeleton: () => <div data-testid="broker-card-skeleton">loading</div>,
 }));
 
+// Mock SalesContext
+vi.mock("@/contexts/SalesContext", () => ({
+  useSales: () => ({
+    sales: [],
+    isLoading: false,
+    createSale: vi.fn(),
+    updateSale: vi.fn(),
+    deleteSale: vi.fn(),
+    getSalesByBrokerId: vi.fn(() => []),
+  }),
+  SalesProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+// Mock ListingsContext
+vi.mock("@/contexts/ListingsContext", () => ({
+  useListings: () => ({
+    listings: [],
+    isLoading: false,
+    createListing: vi.fn(),
+    updateListing: vi.fn(),
+    deleteListing: vi.fn(),
+    getListingsByBrokerId: vi.fn(() => []),
+  }),
+  ListingsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+// Mock ExpensesContext
+vi.mock("@/contexts/ExpensesContext", () => ({
+  useExpenses: () => ({
+    expenses: [],
+    isLoading: false,
+    createExpense: vi.fn(),
+    updateExpense: vi.fn(),
+    deleteExpense: vi.fn(),
+    getExpensesByBrokerId: vi.fn(() => []),
+  }),
+  ExpensesProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+// Mock EmptyState component
+vi.mock("@/components/EmptyState", () => ({
+  EmptyState: ({ title, description, actionLabel, onAction }: {
+    title: string;
+    description: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  }) => (
+    <div data-testid="empty-state">
+      <h3>{title}</h3>
+      <p>{description}</p>
+      {actionLabel && onAction && <button onClick={onAction}>{actionLabel}</button>}
+    </div>
+  ),
+}));
+
 describe("Brokers page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
