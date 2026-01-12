@@ -43,9 +43,10 @@ import {
   Plus,
   Trash2,
   Edit,
-  Building2
+  Building2,
+  Calendar
 } from "lucide-react";
-import { formatDateBR } from "@/lib/utils";
+import { formatDateBR, parseIsoDate } from "@/lib/utils";
 
 const COLOR_PALETTE = [
   "#8b5cf6",
@@ -56,6 +57,11 @@ const COLOR_PALETTE = [
   "#ef4444",
   "#14b8a6",
   "#6366f1",
+];
+
+const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
 type ChallengeTargetForm = {
@@ -135,6 +141,20 @@ const BrokerDetails = () => {
   const brokerClients = clients.filter(client => client.broker_id === brokerId);
   const brokerListings = brokerId ? getListingsByBrokerId(brokerId) : [];
   const brokerChallenges = brokerId ? getChallengesByBrokerId(brokerId) : [];
+
+  // Update broker basic info when brokerFromStore changes
+  useEffect(() => {
+    if (brokerFromStore) {
+      setBrokerData(prev => ({
+        ...prev,
+        id: brokerFromStore.id,
+        name: brokerFromStore.name ?? "",
+        creci: brokerFromStore.creci ?? "",
+        email: brokerFromStore.email ?? "",
+        phone: brokerFromStore.phone ?? "",
+      }));
+    }
+  }, [brokerFromStore]);
   const sortedBrokerChallenges = [...brokerChallenges].sort((a, b) => {
     const endA = new Date(a.endDate).getTime();
     const endB = new Date(b.endDate).getTime();
@@ -288,6 +308,10 @@ const BrokerDetails = () => {
   const [expensesModalOpen, setExpensesModalOpen] = useState(false);
   const [clientsModalOpen, setClientsModalOpen] = useState(false);
   const [selectedPropertyType, setSelectedPropertyType] = useState<'Apartamento' | 'Casa' | 'Sobrado' | 'Lote' | 'Chácara' | null>(null);
+
+  // Date filter states
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState("all");
 
   // Form states
   const [newSale, setNewSale] = useState({ propertyAddress: "", clientName: "", saleValue: "", commission: "", date: "", saleType: "revenda" as SaleType });
@@ -1200,6 +1224,75 @@ const BrokerDetails = () => {
     return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
   };
 
+  // Get available years from all data sources for this broker
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    // Always include the current year
+    years.add(new Date().getFullYear());
+
+    brokerData.sales.forEach(sale => {
+      const date = parseIsoDate(sale.date);
+      if (date) years.add(date.getFullYear());
+    });
+    brokerData.listings.forEach(listing => {
+      const date = parseIsoDate(listing.date);
+      if (date) years.add(date.getFullYear());
+    });
+    brokerData.expenses.forEach(expense => {
+      const date = parseIsoDate(expense.date);
+      if (date) years.add(date.getFullYear());
+    });
+    brokerData.meetings.forEach(meeting => {
+      const date = parseIsoDate(meeting.date);
+      if (date) years.add(date.getFullYear());
+    });
+
+    return Array.from(years).sort((a, b) => b - a);
+  }, [brokerData.sales, brokerData.listings, brokerData.expenses, brokerData.meetings]);
+
+  // Filter data based on selected year and month
+  const filteredBrokerData = useMemo(() => {
+    const year = selectedYear === "all" ? null : parseInt(selectedYear);
+    const month = selectedMonth === "all" ? null : parseInt(selectedMonth);
+
+    const filterByDate = (date: string) => {
+      const parsedDate = parseIsoDate(date);
+      if (!parsedDate) return false;
+      if (year !== null && parsedDate.getFullYear() !== year) return false;
+      if (month !== null && parsedDate.getMonth() !== month) return false;
+      return true;
+    };
+
+    return {
+      sales: brokerData.sales.filter(s => filterByDate(s.date)),
+      listings: brokerData.listings.filter(l => filterByDate(l.date)),
+      meetings: brokerData.meetings.filter(m => filterByDate(m.date)),
+      expenses: brokerData.expenses.filter(e => filterByDate(e.date)),
+    };
+  }, [brokerData, selectedYear, selectedMonth]);
+
+  // Get filtered detailed listings by property type for the Listings tab
+  const filteredDetailedListingsByType = useMemo(() => {
+    const propertyTypes = ['Apartamento', 'Casa', 'Sobrado', 'Lote', 'Chácara'] as const;
+    const result: Record<string, ReturnType<typeof getDetailedListingsByType>> = {};
+
+    propertyTypes.forEach(propertyType => {
+      const allListings = getDetailedListingsByType(brokerId!, propertyType);
+      // Filter by selected date period
+      result[propertyType] = allListings.filter(listing => {
+        const date = parseIsoDate(listing.listingDate);
+        if (!date) return false;
+        const year = selectedYear === "all" ? null : parseInt(selectedYear);
+        const month = selectedMonth === "all" ? null : parseInt(selectedMonth);
+        if (year !== null && date.getFullYear() !== year) return false;
+        if (month !== null && date.getMonth() !== month) return false;
+        return true;
+      });
+    });
+
+    return result;
+  }, [brokerId, selectedYear, selectedMonth, getDetailedListingsByType]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -1239,17 +1332,68 @@ const BrokerDetails = () => {
           </div>
         </div>
 
+        {/* Date Filters */}
+        <Card className="p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="year-filter" className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4" />
+                Ano
+              </Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger id="year-filter">
+                  <SelectValue placeholder="Selecione o ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="month-filter" className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4" />
+                Mês
+              </Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger id="month-filter">
+                  <SelectValue placeholder="Selecione o mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os meses</SelectItem>
+                  {MONTH_NAMES.map((name, index) => (
+                    <SelectItem key={index} value={index.toString()}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </Card>
+
         {/* Métricas do Corretor */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <MetricCard
-            title="Vendas no Ano"
-            value={brokerData.totalSales}
+            title="Vendas no Período"
+            value={filteredBrokerData.sales.length}
             icon={TrendingUp}
             variant="success"
           />
           <MetricCard
-            title="Captações"
-            value={brokerData.totalListings}
+            title="Captações no Período"
+            value={filteredBrokerData.listings
+              .filter(l => l.status !== 'Agregado')
+              .reduce((acc, listing) => {
+                const parsed = Number(listing.quantity);
+                const quantity = Number.isFinite(parsed) ? parsed : 1;
+                return acc + (quantity >= 0 ? quantity : 0);
+              }, 0)}
             icon={Home}
             variant="info"
           />
@@ -1259,16 +1403,16 @@ const BrokerDetails = () => {
               style: 'currency',
               currency: 'BRL',
               minimumFractionDigits: 0
-            }).format(brokerData.totalValue)}
+            }).format(filteredBrokerData.sales.reduce((sum, s) => sum + (s.value || 0), 0))}
             icon={DollarSign}
             variant="success"
           />
           <MetricCard
-            title="Gastos no Mês"
+            title="Gastos no Período"
             value={new Intl.NumberFormat('pt-BR', {
               style: 'currency',
               currency: 'BRL'
-            }).format(brokerData.monthlyExpenses)}
+            }).format(filteredBrokerData.expenses.reduce((sum, e) => sum + (e.cost || 0), 0))}
             icon={DollarSign}
             variant="warning"
           />
@@ -1647,10 +1791,10 @@ const BrokerDetails = () => {
                 <p className="text-sm text-muted-foreground">VGV Total</p>
                 <p className="text-2xl font-bold mt-1">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    brokerData.sales.reduce((sum, s) => sum + s.value, 0)
+                    filteredBrokerData.sales.reduce((sum, s) => sum + s.value, 0)
                   )}
                 </p>
-                <p className="text-xs text-muted-foreground">{brokerData.sales.length} vendas</p>
+                <p className="text-xs text-muted-foreground">{filteredBrokerData.sales.length} vendas</p>
               </div>
               <div className="rounded-lg bg-muted/40 border border-l-4 border-l-orange-500 p-4">
                 <div className="flex items-center gap-2">
@@ -1659,11 +1803,11 @@ const BrokerDetails = () => {
                 </div>
                 <p className="text-2xl font-bold text-orange-600 mt-1">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    brokerData.sales.filter(s => s.saleType === 'lancamento').reduce((sum, s) => sum + s.value, 0)
+                    filteredBrokerData.sales.filter(s => s.saleType === 'lancamento').reduce((sum, s) => sum + s.value, 0)
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {brokerData.sales.filter(s => s.saleType === 'lancamento').length} vendas
+                  {filteredBrokerData.sales.filter(s => s.saleType === 'lancamento').length} vendas
                 </p>
               </div>
               <div className="rounded-lg bg-muted/40 border border-l-4 border-l-emerald-500 p-4">
@@ -1673,11 +1817,11 @@ const BrokerDetails = () => {
                 </div>
                 <p className="text-2xl font-bold text-emerald-600 mt-1">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    brokerData.sales.filter(s => s.saleType === 'revenda').reduce((sum, s) => sum + s.value, 0)
+                    filteredBrokerData.sales.filter(s => s.saleType === 'revenda').reduce((sum, s) => sum + s.value, 0)
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {brokerData.sales.filter(s => s.saleType === 'revenda').length} vendas
+                  {filteredBrokerData.sales.filter(s => s.saleType === 'revenda').length} vendas
                 </p>
               </div>
             </div>
@@ -1776,7 +1920,7 @@ const BrokerDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {brokerData.sales.map(sale => (
+                  {filteredBrokerData.sales.map(sale => (
                     <div key={sale.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <Badge
@@ -1828,7 +1972,7 @@ const BrokerDetails = () => {
                     key={propertyType}
                     propertyType={propertyType}
                     brokerId={brokerId!}
-                    listings={getDetailedListingsByType(brokerId!, propertyType)}
+                    listings={filteredDetailedListingsByType[propertyType] || []}
                     aggregateQuantity={getAggregateQuantity(brokerId!, propertyType)}
                     onQuantityChange={async (quantity) => {
                       try {
@@ -2050,7 +2194,7 @@ const BrokerDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {brokerData.meetings.map(meeting => (
+                  {filteredBrokerData.meetings.map(meeting => (
                     <div key={meeting.id} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
@@ -2208,7 +2352,7 @@ const BrokerDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {brokerData.expenses.map(expense => (
+                  {filteredBrokerData.expenses.map(expense => (
                     <div key={expense.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <h4 className="font-semibold">{expense.description}</h4>
